@@ -1,0 +1,35 @@
+databases:
+ regcor_refine_db:
+  host: "edb-mq-dia-dcc-regcor.c8s6jufr6wh8.us-east-2.rds.amazonaws.com"
+  database: "edb_mq_dia_dcc_regcor"
+  user: "edb_mq_dia_dcc_regcor_ro"
+  password: "L#122jhklumKwljk1234YYY"
+  port: 5432
+  sslmode: "require"
+
+ regcor_source_GMDF_db:
+  host: "edb-analytic-consumer-dev.cnjndgzifrh0.us-east-2.redshift.amazonaws.com"
+  database: "mq_dia_gmdf"
+  user: "gmdf_ref_regcor_dev_user"
+  password: "Gmdfcore#08012025"
+  port: 5439
+  sslmode: "require"
+
+ regcor_source_RIM_REF_db:
+  host: "edb-md-non-clinical-assets-dev.cluster-c8s6jufr6wh8.us-east-2.rds.amazonaws.com"
+  database: "edb_md_non_clinical_assets_dev"
+  user: "dcc_rim_user"
+  password: "mjDN3yn-jiP32rr#8Re"
+  port: 5432
+  sslmode: "require"
+
+ regcor_source_RDM_db:
+  host: "edb-mq-dcc-adhoc-prod.ctpbrjab6xmb.us-east-2.rds.amazonaws.com"
+  database: "edb_mq_dcc_adhoc_regcor_prod"
+  user: "regcor_sb_user"
+  password: "Rc2025adhocarea5555$"
+  port: 5432
+  sslmode: "require"
+
+
+

@@ -1,0 +1,9 @@
+# .gitignore
+__pycache__/
+*.pyc
+*.log
+.env
+*.sqlite3
+.DS_Store
+.vscode/
+reports/
