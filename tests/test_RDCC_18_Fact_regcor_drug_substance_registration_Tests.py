@@ -16,12 +16,17 @@ def validation():
     return {
         "db": "regcor_refine_db",
         "schema": "regcor_refine",
-        "target_table": "fact_regcor_drug_product_registration",
+        "target_table": "fact_regcor_drug_substance_registration",
         "source_table": "registration",
         "target_column": "registration_id",
         "source_column":"id"
     }
 
+# -----------✅ Test: Table Exists ----------
+def test_table_exists(validation):
+    conn = get_connection(validation["db"])
+    assert validate_table_exists(conn, validation["schema"], validation["target_table"]), "❌ Target Table does not exist!"
+    print(f"\nTable {validation["target_table"]} exists")
 
 def test_validate_connection(validation):
     """
@@ -37,7 +42,8 @@ def test_validate_connection(validation):
     except Exception as e:
         pytest.fail(f"❌ Failed to connect to {validation["db"]}: {str(e)}")
 
-def test_null_values(validation: dict[str, str]):
+# fact_regcor_drug_product_registration.Registration_id column Validation
+def test_regitration_id_null_values(validation: dict[str, str]):
     """
     Checks if a column contains NULL values in a given table and schema.
 
@@ -68,4 +74,15 @@ def test_null_values(validation: dict[str, str]):
     )
     print(f"\n{validation['db']}.{validation['schema']}.{validation['target_table']}.{validation['target_column']} "
         f"contains NO NULL values!\n")
+
+
+def test_data_completeness_reg_id(validation):
+    conn = get_connection(validation["db"])
+    passed, missing_count, message = check_data_completeness(
+        conn, conn,
+        validation['schema'],validation["source_table"],validation["source_column"],
+        validation["schema"],validation["target_table"],validation["target_column"]
+        )
+    assert passed, message
+
     

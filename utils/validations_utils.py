@@ -1,5 +1,31 @@
 import logging
 
+def validate_table_exists(conn, schema, table):
+    """
+    ✅ Validate if a table exists in the given schema.
+
+    Args:
+        conn: Database connection object.
+        schema (str): Schema name.
+        table (str): Table name.
+
+    Returns:
+        bool: True if table exists, False otherwise.
+    """
+    cursor = conn.cursor()
+    query = """
+        SELECT EXISTS (
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = %s AND table_name = %s
+        );
+    """
+    cursor.execute(query, (schema, table))
+    result = cursor.fetchone()[0]
+    cursor.close()
+    return result
+
+
 def check_null_values(connection, schema_name, table_name, column_name):
     """
     Checks the number of NULL values in a specific column of a table.
@@ -27,32 +53,95 @@ def check_null_values(connection, schema_name, table_name, column_name):
         logging.error(f"Error checking NULLs in {schema_name}.{table_name}.{column_name}: {str(e)}")
         return -1
 
-
-def check_data_completeness(connection, schema_name, source_table_name,target_table_name, source_column_name,target_column_name):
+def validate_row_count_match(source_conn, target_conn, source_schema, source_table, target_schema, target_table):
     """
-    Checks the number of NULL values in a specific column of a table.
-    Author : Shilpi Jha
+    🔁 Validate if row count between source and target tables is the same.
+
     Args:
-        connection: psycopg2 database connection object.
-        schema_name (str): The schema name.
-        source_table_name (str): The table name.
-        target_table_name (str): The table name.
-        source_column_name (str): The source column to check.
-        target_column_name (str): The column to check.
+        source_conn: Connection to source DB.
+        target_conn: Connection to target DB.
+        source_schema (str): Source schema name.
+        source_table (str): Source table name.
+        target_schema (str): Target schema name.
+        target_table (str): Target table name.
+
     Returns:
-        int: The number of NULL values found in the column.
+        (bool, int, int): Match result, source count, target count.
+    """
+    src_cursor = source_conn.cursor()
+    tgt_cursor = target_conn.cursor()
+
+    src_cursor.execute(f"SELECT COUNT(*) FROM {source_schema}.{source_table};")
+    tgt_cursor.execute(f"SELECT COUNT(*) FROM {target_schema}.{target_table};")
+
+    src_count = src_cursor.fetchone()[0]
+    tgt_count = tgt_cursor.fetchone()[0]
+
+    src_cursor.close()
+    tgt_cursor.close()
+
+    return src_count == tgt_count, src_count, tgt_count
+
+import logging
+
+import logging
+
+import logging
+
+import logging
+
+import logging
+
+def check_data_completeness(
+    conn_src, conn_tgt,
+    src_schema, src_table, src_key,
+    tgt_schema, tgt_table, tgt_key
+):
+    """
+    Validates data completeness between source and target using a LEFT JOIN,
+    allowing different key column names.
+
+    Args:
+        conn_src: psycopg2 connection object to source DB
+        conn_tgt: psycopg2 connection object to target DB
+        src_schema (str): Source schema name
+        src_table (str): Source table name
+        src_key (str): Source key column name
+        tgt_schema (str): Target schema name
+        tgt_table (str): Target table name
+        tgt_key (str): Target key column name
+
+    Returns:
+        Tuple: (passed: bool, missing_count: int, message: str)
     """
     try:
-        with connection.cursor() as cursor:
-            query = f"""
-                SELECT DISTINCT f.{target_column_name}
-                FROM {target_table_name} f
-                LEFT JOIN {source_table_name} r ON f.{target_column_name} = r.{source_column_name}
-                WHERE r.id IS NULL;
-            """
-            cursor.execute(query)
-            null_count = cursor.fetchone()[0]
-            return null_count
+        cursor = conn_src.cursor()
+
+        query = f"""
+        SELECT COUNT(*) 
+        FROM {tgt_schema}.{tgt_table} tgt
+        LEFT JOIN {src_schema}.{src_table} src
+        ON src.{src_key} = tgt.{tgt_key}
+        WHERE tgt.{tgt_key} IS NULL;
+        """
+
+        cursor.execute(query)
+        missing_count = cursor.fetchone()[0]
+        cursor.close()
+
+        if missing_count == 0:
+            message = f"\n✅ All records in {src_schema}.{src_table} exist in {tgt_schema}.{tgt_table}."
+            logging.info(message)
+            print(message)
+            return True, 0, message
+        else:
+            message = f"❌ {missing_count} records in {src_schema}.{src_table} are missing in {tgt_schema}.{tgt_table}."
+            logging.warning(message)
+            print(message)
+            return False, missing_count, message
+
     except Exception as e:
-        logging.error(f"Error checking completeness in {schema_name}.{target_table_name}.{target_column_name}: {str(e)}")
-        return -1
+        error_msg = f"❌ Error during completeness check: {str(e)}"
+        logging.error(error_msg)
+        print(error_msg)
+        return False, -1, error_msg
