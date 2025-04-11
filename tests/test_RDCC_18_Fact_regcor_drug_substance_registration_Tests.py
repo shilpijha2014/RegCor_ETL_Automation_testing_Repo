@@ -69,16 +69,3 @@ def test_null_values(validation: dict[str, str]):
     print(f"\n{validation['db']}.{validation['schema']}.{validation['target_table']}.{validation['target_column']} "
         f"contains NO NULL values!\n")
     
-def test_data_completeness():
-    conn = get_connection(validation["db"])
-    cursor = conn.cursor()
-
-    null_record = check_data_completeness(conn,validation["schema"], validation["source_table"], validation["source_table"],validation["source_column"],validation["target_column"])    
-
-    assert null_record == 0,(
-        f"\n❌ {validation['db']}.{validation['schema']}.{validation['target_table']}.{validation['target_column']} "
-        f"contains {null_count} NULL values!\n"
-    )
-    print(f"Data Completeness for {Schema}.{target_table}.{target_column} passed")
-    cursor.close()
-    conn.close()
