@@ -16,8 +16,10 @@ def validation():
     return {
         "db": "regcor_refine_db",
         "schema": "regcor_refine",
-        "table": "fact_regcor_drug_product_registration",
-        "column": "registration_id"
+        "target_table": "fact_regcor_drug_product_registration",
+        "source_table": "registration",
+        "target_column": "registration_id",
+        "source_column":"id"
     }
 
 
@@ -43,8 +45,8 @@ def test_null_values(validation: dict[str, str]):
         validation (dict): A dictionary with keys:
             - "db": Database name (defined in db_config.yaml)
             - "schema": Schema name
-            - "table": Table name
-            - "column": Column to check
+            - "target_table": Table name
+            - "target_column": Column to check
     Raises:
         AssertionError: If NULL values are found in the specified column.
     """
@@ -53,19 +55,30 @@ def test_null_values(validation: dict[str, str]):
 
     query = f"""
         SELECT COUNT(*) 
-        FROM "{validation['schema']}"."{validation['table']}" 
-        WHERE "{validation['column']}" IS NULL;
+        FROM "{validation['schema']}"."{validation['target_table']}" 
+        WHERE "{validation['target_column']}" IS NULL;
     """
 
     cursor.execute(query)
     null_count = cursor.fetchone()[0]
 
     assert null_count == 0, (
-        f"\n❌ {validation['db']}.{validation['schema']}.{validation['table']}.{validation['column']} "
+        f"\n❌ {validation['db']}.{validation['schema']}.{validation['target_table']}.{validation['target_column']} "
         f"contains {null_count} NULL values!\n"
     )
-    print(f"\n{validation['db']}.{validation['schema']}.{validation['table']}.{validation['column']} "
+    print(f"\n{validation['db']}.{validation['schema']}.{validation['target_table']}.{validation['target_column']} "
         f"contains NO NULL values!\n")
+    
+def test_data_completeness():
+    conn = get_connection(validation["db"])
+    cursor = conn.cursor()
 
+    null_record = check_data_completeness(conn,validation["schema"], validation["source_table"], validation["source_table"],validation["source_column"],validation["target_column"])    
+
+    assert null_record == 0,(
+        f"\n❌ {validation['db']}.{validation['schema']}.{validation['target_table']}.{validation['target_column']} "
+        f"contains {null_count} NULL values!\n"
+    )
+    print(f"Data Completeness for {Schema}.{target_table}.{target_column} passed")
     cursor.close()
     conn.close()
