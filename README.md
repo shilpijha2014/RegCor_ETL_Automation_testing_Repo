@@ -23,8 +23,11 @@ bash
 
 etl_testing_framework/
 │
+
 ├── config/
+
 │   └── db_config.yaml         # Database connection details
+
 │
 ├── utils/
 │   ├── db_connector.py        # Functions to connect to DB
@@ -42,29 +45,25 @@ etl_testing_framework/
 Clone the repository
 
 bash
-Copy
-Edit
+
 git clone <your_repo_url>
 cd etl_testing_framework
 Create and activate a virtual environment
 
 bash
-Copy
-Edit
+
 python -m venv venv
 venv\Scripts\activate  # Windows
 # source venv/bin/activate  # macOS/Linux
 Install dependencies
 
 bash
-Copy
-Edit
+
 pip install -r requirements.txt
-Configure database connections Edit config/db_config.yaml with your database details:
+Configure database connections    config/db_config.yaml with your database details:
 
 yaml
-Copy
-Edit
+
 databases:
   source_db:
     host: "hostname"
@@ -78,7 +77,7 @@ databases:
 To run all tests and generate an HTML report:
 
 bash
-Copy
-Edit
+ 
+  
 python run_tests.py
 The report will be saved in the reports/ folder.
