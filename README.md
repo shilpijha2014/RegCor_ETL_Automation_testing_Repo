@@ -20,8 +20,7 @@ This ETL Testing Automation Framework is designed to validate the integrity and 
 
 🏗️ Project Structure
 bash
-Copy
-Edit
+
 etl_testing_framework/
 │
 ├── config/
