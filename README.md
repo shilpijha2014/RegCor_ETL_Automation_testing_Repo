@@ -1,7 +1,10 @@
-🚀 ETL Testing Automation Framework
+**🚀 ETL Testing Automation Framework**
+
 This ETL Testing Automation Framework is designed to validate the integrity and quality of data as it moves from a source system to a target system. It supports validations such as table existence, row counts, null checks, and record mismatches — without using pandas.
 
-📦 Features
+
+**📦 Features**
+
 ✅ Validate table existence in source and target
 
 ✅ Compare row counts between source and target tables
@@ -18,9 +21,11 @@ This ETL Testing Automation Framework is designed to validate the integrity and 
 
 ✅ No pandas dependency — optimized for performance and memory
 
-🏗️ Project Structure
-bash
 
+
+**🏗️ Project Structure**
+
+bash
 etl_testing_framework/
 │
 
@@ -30,35 +35,47 @@ etl_testing_framework/
 
 │
 ├── utils/
+
 │   ├── db_connector.py        # Functions to connect to DB
+
 │   └── validation_functions.py# Core reusable test functions
 │
+
 ├── tests/
+
 │   ├── test_nulls.py          # Sample test for null validation
+
 │   ├── test_row_counts.py     # Sample test for row count validation
+
 │   └── test_keys.py           # Sample test for missing record validation
 │
+
 ├── reports/                   # Generated HTML test reports
 │
+
 └── run_tests.py               # Script to run all tests with report
-⚙️ Setup Instructions
+
+
+
+⚙️ **Setup Instructions**
+
 Clone the repository
 
 bash
-
 git clone <your_repo_url>
 cd etl_testing_framework
 Create and activate a virtual environment
 
 bash
-
 python -m venv venv
-venv\Scripts\activate  # Windows
-# source venv/bin/activate  # macOS/Linux
+venv\Scripts\activate  
+
+Windows
+source venv/bin/activate  
+
 Install dependencies
 
 bash
-
 pip install -r requirements.txt
 Configure database connections    config/db_config.yaml with your database details:
 
@@ -73,11 +90,11 @@ databases:
     password: "password"
   target_db:
     ...
-🧪 Running Tests
-To run all tests and generate an HTML report:
 
-bash
- 
-  
+
+**🧪 Running Tests**
+
+To run all tests and generate an HTML report:
+bash  
 python run_tests.py
 The report will be saved in the reports/ folder.
