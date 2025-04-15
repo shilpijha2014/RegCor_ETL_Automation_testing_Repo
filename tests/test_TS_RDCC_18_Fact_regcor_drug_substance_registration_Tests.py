@@ -80,7 +80,7 @@ def test_TC_RDCC_19_2_regitration_id_data_completeness_Test(validation):
 
 # fact_regcor_drug_product_registration.Registration_name column Validation
 def test_TC_RDCC_20_1_regitration_name_column_null_values(validation: dict[str, str]):
- 
+    print("TC-RDCC-20-This Test case validates the registration_name in fact table  is correctly mapped with Name__v from source rim_ref.registration source table.")
     conn = get_connection(validation["db"])
     cursor = conn.cursor()
     print("Checking if a column contains NULL values in a given table and schema.")
@@ -132,4 +132,18 @@ def test_TC_RDCC_20_1_regitration_state_column_null_values(validation: dict[str,
     )
     print(f"\n{validation['db']}.{validation['schema']}.{validation['target_table']}.registration_name "
         f"contains NO NULL values!\n")
+
+#This query checks if the registration_state values in the fact_regcor_drug_substance_registration 
+# table have corresponding labels in the objectlifecyclestate_ref table.
+    
+def test_TC_RDCC_20_2_3_regitration_name_data_completeness_Test(validation):
+    conn = get_connection(validation["db"])
+
+    result = check_data_completeness(
+        conn, 
+        validation["schema"],validation["source_table"],"name__v",
+        validation["schema"],validation["target_table"],"registration_name"
+        )
+    print(result)
+    conn.close()
 

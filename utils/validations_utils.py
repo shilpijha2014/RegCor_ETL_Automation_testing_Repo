@@ -42,7 +42,7 @@ def check_null_values(connection, schema_name, table_name, column_name):
     try:
         with connection.cursor() as cursor:
             query = f"""
-                SELECT COUNT(*) 
+                SELECT distinct {column_name}
                 FROM {schema_name}.{table_name}
                 WHERE {column_name} IS NULL;
             """
@@ -141,7 +141,8 @@ import logging
 import psycopg2
 import logging
 
-def check_data_completeness(connection, src_schema, src_table, src_key, tgt_schema, tgt_table, tgt_key):
+def check_data_completeness(connection, src_schema, src_table, src_key, 
+                            tgt_schema, tgt_table, tgt_key):
     """
     Validates data completeness between source and target tables using LEFT JOINs in both directions.
     
