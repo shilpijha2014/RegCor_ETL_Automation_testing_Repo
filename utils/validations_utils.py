@@ -42,7 +42,7 @@ def check_null_values(connection, schema_name, table_name, column_name):
     try:
         with connection.cursor() as cursor:
             query = f"""
-                SELECT distinct {column_name}
+                SELECT COUNT(*) 
                 FROM {schema_name}.{table_name}
                 WHERE {column_name} IS NULL;
             """
