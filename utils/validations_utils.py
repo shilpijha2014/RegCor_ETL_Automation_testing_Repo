@@ -1,4 +1,5 @@
 import logging
+import psycopg2
 
 def validate_table_exists(conn, schema, table):
     """
@@ -50,7 +51,7 @@ def check_null_values(connection, schema_name, table_name, column_name):
             null_count = cursor.fetchone()[0]
             return null_count
     except Exception as e:
-        logging.error(f"Error checking NULLs in {schema_name}.{table_name}.{column_name}: {str(e)}")
+        logging.error(f"\nError checking NULLs in {schema_name}.{table_name}.{column_name}: {str(e)}")
         return -1
 
 def validate_row_count_match(source_conn, target_conn, source_schema, source_table, target_schema, target_table):
@@ -82,64 +83,6 @@ def validate_row_count_match(source_conn, target_conn, source_schema, source_tab
 
     return src_count == tgt_count, src_count, tgt_count
 
-import logging
-
-# def check_data_completeness(
-#     conn_src, conn_tgt,
-#     src_schema, src_table, src_key,
-#     tgt_schema, tgt_table, tgt_key
-# ):
-#     """
-#     Validates data completeness between source and target using a LEFT JOIN,
-#     allowing different key column names.
-
-#     Args:
-#         conn_src: psycopg2 connection object to source DB
-#         conn_tgt: psycopg2 connection object to target DB
-#         src_schema (str): Source schema name
-#         src_table (str): Source table name
-#         src_key (str): Source key column name
-#         tgt_schema (str): Target schema name
-#         tgt_table (str): Target table name
-#         tgt_key (str): Target key column name
-
-#     Returns:
-#         Tuple: (passed: bool, missing_count: int, message: str)
-#     """
-#     try:
-#         cursor = conn_src.cursor()
-
-#         query = f"""
-#         SELECT COUNT(*) 
-#         FROM {tgt_schema}.{tgt_table} tgt
-#         LEFT JOIN {src_schema}.{src_table} src
-#         ON tgt.{tgt_key} = src.{src_key}
-#         WHERE src.{src_key} IS NULL;
-#         """
-
-#         cursor.execute(query)
-#         missing_count = cursor.fetchone()[0]
-#         cursor.close()
-
-#         if missing_count == 0:
-#             message = f"\n✅ All records in {src_schema}.{src_table} exist in {tgt_schema}.{tgt_table}."
-#             logging.info(message)
-#             print(message)
-#             return True, 0, message
-#         else:
-#             message = f"❌ {missing_count} records in {src_schema}.{src_table} are missing in {tgt_schema}.{tgt_table}."
-#             logging.warning(message)
-#             print(message)
-#             return False, missing_count, message
-
-#     except Exception as e:
-#         error_msg = f"❌ Error during completeness check: {str(e)}"
-#         logging.error(error_msg)
-#         print(error_msg)
-#         return False, -1, error_msg
-
-import psycopg2
-import logging
 
 def check_data_completeness(connection, src_schema, src_table, src_key, 
                             tgt_schema, tgt_table, tgt_key):
@@ -199,3 +142,77 @@ def check_data_completeness(connection, src_schema, src_table, src_key,
         "missing_in_target": missing_in_target,
         "missing_in_source": missing_in_source
     }
+
+def check_col_data_completeness(connection, src_schema, src_table, src_key, 
+                                tgt_schema, tgt_table, tgt_key):
+    """
+    Validates data completeness between source and target tables using LEFT JOINs
+    and distinct key comparison.
+
+    Args:
+        connection: Active psycopg2 connection object.
+        src_schema (str): Source schema name.
+        src_table (str): Source table name.
+        src_key (str): Primary/Join key in the source table.
+        tgt_schema (str): Target schema name.
+        tgt_table (str): Target table name.
+        tgt_key (str): Primary/Join key in the target table.
+
+    Returns:
+        tuple: (bool, int, str) indicating success, number of missing records, and message.
+    """
+    try:
+        cursor = connection.cursor()
+
+        # Find records in Target but missing in Source
+        src_to_tgt_query = f"""
+            SELECT DISTINCT tgt.{tgt_key}
+            FROM {tgt_schema}.{tgt_table} tgt
+            LEFT JOIN {src_schema}.{src_table} src
+            ON src.{src_key} = tgt.{tgt_key}
+            WHERE src.{src_key} IS NULL;
+        """
+
+        # Find records in Source but missing in Target
+        tgt_to_src_query = f"""
+            SELECT DISTINCT src.{src_key}
+            FROM {src_schema}.{src_table} src
+            LEFT JOIN {tgt_schema}.{tgt_table} tgt
+            ON tgt.{tgt_key} = src.{src_key}
+            WHERE tgt.{tgt_key} IS NULL;
+        """
+
+        cursor.execute(src_to_tgt_query)
+        missing_in_target = cursor.fetchall()
+
+        cursor.execute(tgt_to_src_query)
+        missing_in_source = cursor.fetchall()
+
+        count_missing_in_target = len(missing_in_target)
+        count_missing_in_source = len(missing_in_source)
+
+        if count_missing_in_target == 0 and count_missing_in_source == 0:
+            message = f"✅ \nData completeness passed: No missing records between {src_table} and {tgt_table}."
+            logging.info(message)
+            print(message)
+            return True, 0, message
+        else:
+            total_missing = count_missing_in_target + count_missing_in_source
+            message = (f"❌ \nData completeness failed:\n"
+                       f"Missing in Target: {count_missing_in_target} keys\n"
+                       f"Missing in Source: {count_missing_in_source} keys\n"
+                       f"Total missing: {total_missing}")
+            logging.warning(message)
+            print(message)
+            return False, total_missing, message
+
+    except Exception as e:
+        error_message = f"❌ \nError during completeness check: {str(e)}"
+        logging.error(error_message)
+        print(error_message)
+        return False, -1, error_message
+
+    finally:
+        if 'cursor' in locals():
+            cursor.close()
+
