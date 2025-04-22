@@ -172,7 +172,7 @@ def check_col_data_completeness_src_to_tgt(connection, src_schema, src_table, sr
             FROM {tgt_schema}.{tgt_table} tgt
             LEFT JOIN {src_schema}.{src_table} src
             ON src.{src_key} = tgt.{tgt_key}
-            WHERE src.{src_key} IS NULL;
+            WHERE src.{src_key} IS NULL and tgt.{tgt_key} ='No Source Value';
         """
 
         cursor.execute(src_to_tgt_query)
@@ -229,7 +229,7 @@ def check_col_data_completeness_tgt_to_src(connection, src_schema, src_table, sr
             FROM {src_schema}.{src_table} src
             LEFT JOIN {tgt_schema}.{tgt_table} tgt
             ON tgt.{tgt_key} = src.{src_key}
-            WHERE tgt.{tgt_key} IS NULL;
+            WHERE tgt.{tgt_key} ='No Source Value';
         """
 
         cursor.execute(tgt_to_src_query)
@@ -260,8 +260,6 @@ def check_col_data_completeness_tgt_to_src(connection, src_schema, src_table, sr
         if 'cursor' in locals():
             cursor.close()
 
-
-
 def check_col_data_completeness(connection, src_schema, src_table, src_key, 
                                 tgt_schema, tgt_table, tgt_key):
     """
@@ -289,7 +287,7 @@ def check_col_data_completeness(connection, src_schema, src_table, src_key,
             FROM {tgt_schema}.{tgt_table} tgt
             LEFT JOIN {src_schema}.{src_table} src
             ON src.{src_key} = tgt.{tgt_key}
-            WHERE src.{src_key} IS NULL;
+            WHERE src.{src_key} IS NULL and tgt.{tgt_key} = 'No Source Value';
         """
 
         # Find records in Source but missing in Target
@@ -298,7 +296,7 @@ def check_col_data_completeness(connection, src_schema, src_table, src_key,
             FROM {src_schema}.{src_table} src
             LEFT JOIN {tgt_schema}.{tgt_table} tgt
             ON tgt.{tgt_key} = src.{src_key}
-            WHERE tgt.{tgt_key} IS NULL;
+            WHERE tgt.{tgt_key} ='No Source Value' ;
         """
 
         cursor.execute(src_to_tgt_query)
@@ -411,33 +409,89 @@ def check_col_key_data_completeness(connection, src_schema, src_table, src_key,
         if 'cursor' in locals():
             cursor.close()
 
-
-def check_duplicates(connection, schema_name, table_name, column_list):
+def check_primary_key_duplicates(connection, schema_name, table_name, primary_key):
     """
-    Checks for duplicates in the target table based on given columns.
-    Logs the result; the test can assert on the return.
+    Validates if there are duplicate values in the primary key column.
+
+    Args:
+        connection: Active psycopg2 connection object.
+        schema_name (str): Name of the schema.
+        table_name (str): Name of the table.
+        primary_key (str): Primary key column to check for duplicates.
+
+    Returns:
+        bool: True if no duplicates, False if duplicates found.
     """
     try:
         cursor = connection.cursor()
-        columns = ", ".join(column_list)
         query = f"""
-            SELECT {columns}, COUNT(*) 
+            SELECT {primary_key}, COUNT(*)
             FROM {schema_name}.{table_name}
-            GROUP BY {columns}
+            where {primary_key} NOT ilike TRIM('No_Source_Value')
+            GROUP BY {primary_key}
             HAVING COUNT(*) > 1;
         """
         cursor.execute(query)
         duplicates = cursor.fetchall()
 
         if duplicates:
-            logging.error(f"❌ Duplicates found in {table_name} on {column_list}: {duplicates}")
+            logging.error(f"❌ Duplicate primary key values found in {schema_name}.{table_name}.{primary_key}: {duplicates}")
             return False
         else:
-            logging.info(f"✅ No duplicates in {table_name} on {column_list}.")
+            logging.info(f"✅ No duplicate primary key values found in {schema_name}.{table_name}.{primary_key}.")
             return True
 
     except Exception as e:
-        logging.error(f"❌ Error during duplicate check: {str(e)}")
+        logging.error(f"❌ Error during primary key duplicate check: {str(e)}")
         return False
     finally:
         cursor.close()
+
+def check_referential_integrity(connection, src_schema, src_table, src_column, 
+                                tgt_schema, tgt_table, tgt_column):
+    """
+    Validates referential integrity between source and target tables.
+    Ensures all target values have a matching source reference.
+
+    Args:
+        connection: Active psycopg2 connection object.
+        src_schema (str): Schema of the source table.
+        src_table (str): Source table name.
+        src_column (str): Source reference column.
+        tgt_schema (str): Schema of the target table.
+        tgt_table (str): Target table name.
+        tgt_column (str): Target foreign key column.
+
+    Returns:
+        bool: True if referential integrity is valid, False otherwise.
+    """
+    try:
+        cursor = connection.cursor()
+
+        query = f"""
+            SELECT {tgt_column}
+            FROM {tgt_schema}.{tgt_table} f
+            LEFT JOIN {src_schema}.{src_table} r
+            ON f.{tgt_column} = r.{src_column}
+            WHERE r.{src_column} IS NULL;
+        """
+        cursor.execute(query)
+        missing_records = cursor.fetchall()
+
+        if missing_records:
+            logging.error(
+                f"❌ Referential integrity failed! {len(missing_records)} records in {tgt_schema}.{tgt_table}.{tgt_column} "
+                f"have no matching entry in {src_schema}.{src_table}.{src_column}."
+            )
+            return False
+        else:
+            logging.info(
+                f"✅ Referential integrity passed! All {tgt_column} values in {tgt_table} exist in {src_table}."
+            )
+            return True
+
+    except Exception as e:
+        logging.error(f"❌ Error during referential integrity check: {str(e)}")
+        return False
+
+
