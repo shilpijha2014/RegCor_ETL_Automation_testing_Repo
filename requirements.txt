@@ -1,5 +1,6 @@
-os
-yaml
 psycopg2
 logging
 pyspark 
+pytest
+pytest-html
+pyyaml

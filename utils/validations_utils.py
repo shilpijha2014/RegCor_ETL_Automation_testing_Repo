@@ -134,7 +134,7 @@ def check_data_completeness(connection, src_schema, src_table, src_key,
     # Logging Results
     if missing_in_target == 0 and missing_in_source == 0:
         logging.info(f"✅ Data completeness check PASSED: No missing records between {src_schema}.{src_table} and {tgt_schema}.{tgt_table}.")
-        return True, 0, message
+        return True, 0
     else:
         logging.warning(f"⚠️ Data completeness check FAILED:")
         logging.warning(f"👉 Records present in Source but missing in Target: {missing_in_target}")
@@ -145,10 +145,10 @@ def check_data_completeness(connection, src_schema, src_table, src_key,
         "missing_in_source": missing_in_source
     }
 
-def check_col_data_completeness(connection, src_schema, src_table, src_key, 
+def check_col_data_completeness_src_to_tgt(connection, src_schema, src_table, src_key, 
                                 tgt_schema, tgt_table, tgt_key):
     """
-    Validates data completeness between source and target tables using LEFT JOINs
+    Validates data completeness between source to target tables using LEFT JOINs
     and distinct key comparison.
 
     Args:
@@ -175,38 +175,22 @@ def check_col_data_completeness(connection, src_schema, src_table, src_key,
             WHERE src.{src_key} IS NULL;
         """
 
-        # Find records in Source but missing in Target
-        tgt_to_src_query = f"""
-            SELECT DISTINCT src.{src_key}
-            FROM {src_schema}.{src_table} src
-            LEFT JOIN {tgt_schema}.{tgt_table} tgt
-            ON tgt.{tgt_key} = src.{src_key}
-            WHERE tgt.{tgt_key} IS NULL;
-        """
-
         cursor.execute(src_to_tgt_query)
         missing_in_target = cursor.fetchall()
 
-        cursor.execute(tgt_to_src_query)
-        missing_in_source = cursor.fetchall()
-
         count_missing_in_target = len(missing_in_target)
-        count_missing_in_source = len(missing_in_source)
 
-        if count_missing_in_target == 0 and count_missing_in_source == 0:
+        if count_missing_in_target == 0:
             message = f"✅ \nData completeness passed: No missing records between {src_table} and {tgt_table}."
             logging.info(message)
             print(message)
             return True, 0, message
         else:
-            total_missing = count_missing_in_target + count_missing_in_source
             message = (f"❌ \nData completeness failed:\n"
-                       f"Missing in Target: {count_missing_in_target} keys\n"
-                       f"Missing in Source: {count_missing_in_source} keys\n"
-                       f"Total missing: {total_missing}")
+                       f"Missing in Target: {count_missing_in_target} keys\n")
             logging.warning(message)
             print(message)
-            return False, total_missing, message
+            return False, count_missing_in_target, message
 
     except Exception as e:
         error_message = f"❌ \nError during completeness check: {str(e)}"
@@ -217,6 +201,65 @@ def check_col_data_completeness(connection, src_schema, src_table, src_key,
     finally:
         if 'cursor' in locals():
             cursor.close()
+
+def check_col_data_completeness_tgt_to_src(connection, src_schema, src_table, src_key, 
+                                tgt_schema, tgt_table, tgt_key):
+    """
+    Validates data completeness between target to source tables using LEFT JOINs
+    and distinct key comparison.
+
+    Args:
+        connection: Active psycopg2 connection object.
+        src_schema (str): Source schema name.
+        src_table (str): Source table name.
+        src_key (str): Primary/Join key in the source table.
+        tgt_schema (str): Target schema name.
+        tgt_table (str): Target table name.
+        tgt_key (str): Primary/Join key in the target table.
+
+    Returns:
+        tuple: (bool, int, str) indicating success, number of missing records, and message.
+    """
+    try:
+        cursor = connection.cursor()
+
+        # Find records in Source but missing in Target
+        tgt_to_src_query = f"""
+            SELECT DISTINCT src.{src_key}
+            FROM {src_schema}.{src_table} src
+            LEFT JOIN {tgt_schema}.{tgt_table} tgt
+            ON tgt.{tgt_key} = src.{src_key}
+            WHERE tgt.{tgt_key} IS NULL;
+        """
+
+        cursor.execute(tgt_to_src_query)
+        missing_in_source = cursor.fetchall()
+
+        count_missing_in_source = len(missing_in_source)
+
+        if count_missing_in_source == 0:
+            message = f"✅ \nData completeness passed: No missing records between {src_table} and {tgt_table}."
+            logging.info(message)
+            print(message)
+            return True, 0, message
+        else:
+
+            message = (f"❌ \nData completeness failed:\n"
+                       f"Missing in Source: {count_missing_in_source} keys\n")
+            logging.warning(message)
+            print(message)
+            return False, count_missing_in_source, message
+
+    except Exception as e:
+        error_message = f"❌ \nError during completeness check: {str(e)}"
+        logging.error(error_message)
+        print(error_message)
+        return False, -1, error_message
+
+    finally:
+        if 'cursor' in locals():
+            cursor.close()
+
 
 
 def check_col_data_completeness(connection, src_schema, src_table, src_key, 
@@ -367,3 +410,35 @@ def check_col_key_data_completeness(connection, src_schema, src_table, src_key,
     finally:
         if 'cursor' in locals():
             cursor.close()
+
+
+def check_duplicates(connection, schema_name, table_name, column_list):
+    """
+    Checks for duplicates in the target table based on given columns.
+    Logs the result; the test can assert on the return.
+    """
+    try:
+        cursor = connection.cursor()
+        columns = ", ".join(column_list)
+        query = f"""
+            SELECT {columns}, COUNT(*) 
+            FROM {schema_name}.{table_name}
+            GROUP BY {columns}
+            HAVING COUNT(*) > 1;
+        """
+        cursor.execute(query)
+        duplicates = cursor.fetchall()
+
+        if duplicates:
+            logging.error(f"❌ Duplicates found in {table_name} on {column_list}: {duplicates}")
+            return False
+        else:
+            logging.info(f"✅ No duplicates in {table_name} on {column_list}.")
+            return True
+
+    except Exception as e:
+        logging.error(f"❌ Error during duplicate check: {str(e)}")
+        return False
+    finally:
+        cursor.close()
+
