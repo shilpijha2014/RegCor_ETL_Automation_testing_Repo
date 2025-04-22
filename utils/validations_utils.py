@@ -441,4 +441,3 @@ def check_duplicates(connection, schema_name, table_name, column_list):
         return False
     finally:
         cursor.close()
-
