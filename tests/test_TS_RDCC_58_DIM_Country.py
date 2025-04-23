@@ -15,10 +15,12 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
 @pytest.fixture
 def validation():
     return {
-        "db": "regcor_refine_db",
-        "schema": "regcor_refine",
+        "source_db": "regcor_refine_db",
+        "source_schema": "regcor_refine",
+        "source_table": "",   
+        "target_db": "regcor_refine_db" ,
+        "target_schema": "regcor_refine",        
         "target_table": "dim_regcor_country",
-        "source_table": "country",
     }
 
 def test_validate_connection(db_connection: connection | None, validation: dict[str, str]):
@@ -26,22 +28,132 @@ def test_validate_connection(db_connection: connection | None, validation: dict[
     Test to validate that a connection to the database can be established.
     """
     try:
-        print(f"\nTest Set-RDCC-46 - This Test case validates the Registration start,end,status date,Registration number in dim table is fetched from source registration source table.")
+        print(f"\nTest Set-RDCC- 58 - This Test set contains test cases for Dim Country table.\n")
         
-        assert db_connection is not None, f"❌ Connection object is None for {validation['db']}"
-        print(f"✅ Successfully connected to database: {validation['db']}")
+        assert db_connection is not None, f"❌ Connection object is None for {validation['target_db']}"
+        print(f"✅ Successfully connected to database: {validation['target_db']}")
 
     except Exception as e:
-        pytest.fail(f"❌ Failed to connect to {validation['db']}: {str(e)}")
+        pytest.fail(f"❌ Failed to connect to {validation['target_db']}: {str(e)}")
 
 def test_table_exists(db_connection: connection | None,validation: dict[str, str]):
     
-    assert validate_table_exists( db_connection,validation["schema"], validation["target_table"]), "❌ Target Table does not exist!"
+    assert validate_table_exists( db_connection,validation["target_schema"], validation["target_table"]), "❌ Target Table does not exist!"
     print(f"\nTable {validation["target_table"]} exists.")
     
 # Test Case - RDCC-58 - This Test set contains test cases for Dim Country table.
-def test_TS_RDCC_58_TC_RDCC_59_country_code(db_connection: connection | None,validation: dict[str, str]):
+def test_TS_RDCC_58_TC_RDCC_59_country_code_null_value_check(db_connection: connection | None,validation: dict[str, str]):
  
-    cursor = db_connection.cursor()
-    print("Test Case - RDCC-47 - This Test case validates the Registration_id in dim_regcor_registration is correctly mapped with id in source registration table .")
-    print("Checking if a column contains NULL values in a given table and schema.")
+    print(f"\nTest Case - RDCC-59 - This Test case validates the Country_code in  dim_regcor_country is correctly fetched with country_code_rim,cnrty_code in source country and ref_mcsad_mcs_cntry with active status__v.\n")
+    print(f"\nIdentify country_code values present in the source  but missing in dim_regcor_country.\n")
+
+    null_count = check_null_values(db_connection,validation["target_schema"],validation["target_table"],"country_code")
+
+    assert null_count == 0, (
+        f"\n❌ {validation['target_db']}.{validation['target_schema']}.{validation['target_table']}.country_code"
+        f" contains {null_count} NULL values!\n"
+    )
+    print(f"\n{validation['target_db']}.{validation['target_schema']}.{validation['target_table']}.country_code"
+        f" contains NO NULL values!\n")
+    
+# def test_TS_RDCC_58_TC_RDCC_59_country_code_data_completeness(db_connection: connection | None,validation: dict[str, str]):
+#     cursor = db_connection.cursor()
+#     query = (f"""SELECT a.country_code
+#     FROM (
+#     SELECT COALESCE(r.country_code__rim, g.cntry_cd) AS country_code
+#     FROM {validation['source_schema']}.country r
+#     FULL OUTER join {validation['source_schema']}.ref_mcsad_mcs_cntry g ON r.country_code__rim = g.cntry_cd
+#     WHERE r.status__v::text != {'inactive__v'}
+#     ) a
+#     WHERE a.country_code IS NOT NULL
+#     EXCEPT
+#     SELECT country_code
+#     FROM {validation['target_schema']}.dim_regcor_country""")
+
+#     print(query)
+
+#     cursor.execute(query)
+#     missing_records = cursor.fetchall()
+
+#     count = len(missing_records)
+#     if count == 0:
+#         message = f"✅ Data completeness passed: All records are present in {validation['target_schema']}.{validation['target_table']}"
+#         logging.info(message)
+#         return True, 0, message
+#     else:
+#         message = f"❌ Data completeness failed: {count} records missing in {validation['target_schema']}.{validation['target_table']}"
+#         logging.error(message)
+#         return False, count, message
+
+def test_TS_RDCC_58_TC_RDCC_60_country_name_check(db_connection: connection | None,validation: dict[str, str]):
+ 
+    print(f"\nTest Case - RDCC-60 - This Test case validates the Country_name in  dim_regcor_country is correctly fetched with name__V in source country table with active status__v.\n")
+
+    null_count = check_null_values(db_connection,validation["target_schema"],validation["target_table"],"country_name")
+
+    assert null_count == 0, (
+        f"\n❌ {validation['target_db']}.{validation['target_schema']}.{validation['target_table']}.country_name"
+        f" contains {null_count} NULL values!\n"
+    )
+    print(f"\n{validation['target_db']}.{validation['target_schema']}.{validation['target_table']}.country_name"
+        f" contains NO NULL values!\n")
+
+    success, count, msg = validate_source_to_target_with_filter(
+        connection=db_connection,
+        src_schema=validation['source_schema'],
+        src_table="country",
+        tgt_schema=validation['target_schema'],
+        tgt_table=validation['target_table'],
+        src_cols=['name__v'],
+        tgt_cols=['country_name'],
+        src_filter=f"status__v::text != '{{inactive__v}}'",
+        tgt_filter=""
+    )
+
+    print(msg)
+    assert success, msg
+
+    success, count, msg = validate_target_to_source_with_filter(
+        connection=db_connection,
+        src_schema=validation['source_schema'],
+        src_table="country",
+        tgt_schema=validation['target_schema'],
+        tgt_table=validation['target_table'],
+        src_cols=['name__v'],
+        tgt_cols=['country_name'],
+        src_filter=f"status__v::text != '{{inactive__v}}'",
+        tgt_filter=""
+    )
+
+    assert success, msg
+
+    result, count, msg = validate_target_to_source_with_filter(
+    connection=db_connection,
+    src_schema=validation['source_schema'],
+    src_table="country",
+    tgt_schema=validation["target_schema"],
+    tgt_table="dim_regcor_country",
+    src_cols=['name__v'],
+    tgt_cols=['country_name'],
+    src_filter=f"status__v::text != '{{inactive__v}}'",
+    tgt_filter=""
+    )
+    print(msg)
+    assert result, msg
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+     
+

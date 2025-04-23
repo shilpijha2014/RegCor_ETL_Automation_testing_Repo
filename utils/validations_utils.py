@@ -1,7 +1,10 @@
 import logging
 import psycopg2
 
-
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(levelname)s - %(message)s'
+)
 
 def validate_table_exists(conn, schema, table):
     """
@@ -409,43 +412,43 @@ def check_col_key_data_completeness(connection, src_schema, src_table, src_key,
         if 'cursor' in locals():
             cursor.close()
 
-def check_primary_key_duplicates(connection, schema_name, table_name, primary_key):
+
+def check_primary_key_duplicates(connection, schema_name, table_name, primary_keys  ):
     """
-    Validates if there are duplicate values in the primary key column.
+    Validates if there are duplicate values for the given primary key(s).
 
     Args:
         connection: Active psycopg2 connection object.
         schema_name (str): Name of the schema.
         table_name (str): Name of the table.
-        primary_key (str): Primary key column to check for duplicates.
+        primary_keys (list): List of primary key columns.
 
     Returns:
         bool: True if no duplicates, False if duplicates found.
     """
     try:
         cursor = connection.cursor()
+        key_columns = ", ".join(primary_keys)
+
         query = f"""
-            SELECT {primary_key}, COUNT(*)
+            SELECT {key_columns}, COUNT(*)
             FROM {schema_name}.{table_name}
-            where {primary_key} NOT ilike TRIM('No_Source_Value')
-            GROUP BY {primary_key}
+            GROUP BY {key_columns}
             HAVING COUNT(*) > 1;
         """
         cursor.execute(query)
         duplicates = cursor.fetchall()
 
         if duplicates:
-            logging.error(f"❌ Duplicate primary key values found in {schema_name}.{table_name}.{primary_key}: {duplicates}")
+            logging.error(f"❌ Duplicate records found in {schema_name}.{table_name} on keys {primary_keys}: {duplicates}")
             return False
         else:
-            logging.info(f"✅ No duplicate primary key values found in {schema_name}.{table_name}.{primary_key}.")
+            logging.info(f"✅ No duplicate values found in {schema_name}.{table_name} on keys {primary_keys}.")
             return True
 
     except Exception as e:
         logging.error(f"❌ Error during primary key duplicate check: {str(e)}")
         return False
-    finally:
-        cursor.close()
 
 def check_referential_integrity(connection, src_schema, src_table, src_column, 
                                 tgt_schema, tgt_table, tgt_column):
@@ -493,5 +496,139 @@ def check_referential_integrity(connection, src_schema, src_table, src_column,
     except Exception as e:
         logging.error(f"❌ Error during referential integrity check: {str(e)}")
         return False
+    
+  
+def validate_source_to_target_with_filter(
+    connection,
+    src_schema,
+    src_table,
+    tgt_schema,
+    tgt_table,
+    src_cols,
+    tgt_cols,
+    src_filter=None,
+    tgt_filter=None
+):
+    """
+    Validates data completeness between source and target using EXCEPT with optional filters and column mapping.
+
+    Args:
+        connection: psycopg2 connection object.
+        src_schema (str): Source schema name.
+        src_table (str): Source table name.
+        tgt_schema (str): Target schema name.
+        tgt_table (str): Target table name.
+        src_cols (list): List of columns in source table.
+        tgt_cols (list): List of corresponding columns in target table.
+        src_filter (str, optional): Filter condition for source table.
+        tgt_filter (str, optional): Filter condition for target table.
+
+    Returns:
+        tuple: (bool, int, str) - status, count of mismatches, message
+    """
+    try:
+        cursor = connection.cursor()
+
+        src_expr = ", ".join(src_cols)
+        tgt_expr = ", ".join(tgt_cols)
+
+        src_where = f"WHERE {src_filter}" if src_filter else ""
+        tgt_where = f"WHERE {tgt_filter}" if tgt_filter else ""
+
+        query = f"""
+            SELECT {src_expr}
+            FROM {src_schema}.{src_table}
+            {src_where}
+            EXCEPT
+            SELECT {tgt_expr}
+            FROM {tgt_schema}.{tgt_table}
+            {tgt_where};
+        """
+
+        print(query)
+        logging.debug("Executing EXCEPT query:\n%s", query)
+        cursor.execute(query)
+        differences = cursor.fetchall()
+        diff_count = len(differences)
+
+        if diff_count == 0:
+            message = f"✅ Data completeness passed: No mismatched records found between {src_table} and {tgt_table}."
+            logging.info(message)
+            return True, 0, message
+        else:
+            message = f"❌ Data completeness failed: {diff_count} mismatched records between {src_table} and {tgt_table}."
+            logging.error(message)
+            return False, diff_count, message
+
+    except Exception as e:
+        error_message = f"❌ Error during completeness validation: {str(e)}"
+        logging.exception(error_message)
+        return False, -1, error_message
+    
+def validate_target_to_source_with_filter(
+    connection,
+    src_schema,
+    src_table,
+    tgt_schema,
+    tgt_table,
+    src_cols,
+    tgt_cols,
+    src_filter=None,
+    tgt_filter=None
+):
+    """
+    Validates data completeness from target to source using EXCEPT with optional filters and column mapping.
+
+    Args:
+        connection: psycopg2 connection object.
+        src_schema (str): Source schema name.
+        src_table (str): Source table name.
+        tgt_schema (str): Target schema name.
+        tgt_table (str): Target table name.
+        src_cols (list): List of columns in source table.
+        tgt_cols (list): List of corresponding columns in target table.
+        src_filter (str, optional): Filter condition for source table.
+        tgt_filter (str, optional): Filter condition for target table.
+
+    Returns:
+        tuple: (bool, int, str) - status, count of mismatches, message
+    """
+    try:
+        cursor = connection.cursor()
+
+        src_expr = ", ".join(src_cols)
+        tgt_expr = ", ".join(tgt_cols)
+
+        src_where = f"WHERE {src_filter}" if src_filter else ""
+        tgt_where = f"WHERE {tgt_filter}" if tgt_filter else ""
+
+        query = f"""
+            SELECT {tgt_expr}
+            FROM {tgt_schema}.{tgt_table}
+            {tgt_where}
+            EXCEPT
+            SELECT {src_expr}
+            FROM {src_schema}.{src_table}
+            {src_where};
+        """
+
+        logging.debug("Executing Target-to-Source EXCEPT query:\n%s", query)
+        cursor.execute(query)
+        differences = cursor.fetchall()
+        diff_count = len(differences)
+
+        if diff_count == 0:
+            message = f"✅ Target-to-Source check passed: All records from {tgt_table} exist in {src_table}."
+            logging.info(message)
+            return True, 0, message
+        else:
+            message = f"❌ Target-to-Source check failed: {diff_count} records in {tgt_table} missing from {src_table}."
+            logging.error(message)
+            return False, diff_count, message
+
+    except Exception as e:
+        error_message = f"❌ Error during target-to-source completeness validation: {str(e)}"
+        logging.exception(error_message)
+        return False, -1, error_message
 
 
