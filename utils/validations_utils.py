@@ -497,6 +497,75 @@ def check_referential_integrity(connection, src_schema, src_table, src_column,
         logging.error(f"❌ Error during referential integrity check: {str(e)}")
         return False
     
+
+def check_data_completeness_with_full_join(
+    connection,
+    src_schema1, src_table1, src_col1,
+    src_schema2, src_table2, src_col2,
+    tgt_schema, tgt_table, tgt_col,
+    join_condition=""
+):
+    """
+    Dynamically validates data completeness using FULL OUTER JOIN with COALESCE and EXCEPT.
+
+    Args:
+        connection: Active psycopg2 connection.
+        src_schema1 (str): Schema of first source table.
+        src_table1 (str): First source table.
+        src_col1 (str): Column from first source table.
+        src_schema2 (str): Schema of second source table.
+        src_table2 (str): Second source table.
+        src_col2 (str): Column from second source table.
+        tgt_schema (str): Schema of target table.
+        tgt_table (str): Target table.
+        tgt_col (str): Column from target table.
+        join_condition (str): Join condition between source tables.
+
+    Returns:
+        tuple: (bool: status, int: count of missing records, str: message)
+    """
+
+    try:
+        cursor = connection.cursor()
+
+        join_sql = f"ON {join_condition}" if join_condition else ""
+
+        query = f"""
+            SELECT a.col
+            FROM (
+                SELECT COALESCE(r.{src_col1}, g.{src_col2}) AS col
+                FROM {src_schema1}.{src_table1} r
+                FULL OUTER JOIN {src_schema2}.{src_table2} g
+                {join_sql}
+                WHERE COALESCE(r.{src_col1}, g.{src_col2}) IS NOT NULL
+            ) a
+            EXCEPT
+            SELECT {tgt_col}
+            FROM {tgt_schema}.{tgt_table};
+        """
+
+        logging.debug(f"Generated SQL:\n{query}")
+        print(f"Generated SQL:\n{query}")
+        cursor.execute(query)
+        missing_records = cursor.fetchall()
+
+        count = len(missing_records)
+        if count == 0:
+            message = f"✅ Data completeness passed: All records are present in {tgt_schema}.{tgt_table}"
+            logging.info(message)
+            return True, 0, message
+        else:
+            message = f"❌ Data completeness failed: {count} records missing in {tgt_schema}.{tgt_table}"
+            logging.error(message)
+            return False, count, message
+
+    except Exception as e:
+        error_msg = f"❌ Error during completeness check: {str(e)}"
+        logging.exception(error_msg)
+        return False, -1, error_msg
+    finally:
+        if cursor:
+            cursor.close()
   
 def validate_source_to_target_with_filter(
     connection,
