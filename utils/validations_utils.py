@@ -59,6 +59,37 @@ def check_null_values(connection, schema_name, table_name, column_name):
         logging.error(f"\nError checking NULLs in {schema_name}.{table_name}.{column_name}: {str(e)}")
         return -1
 
+def check_columns_for_nulls(connection, schema, table, columns):
+    """
+    Checks if any of the specified columns in a table contain NULL values.
+
+    Args:
+        connection: Active DB connection object.
+        schema (str): Schema name.
+        table (str): Table name.
+        columns (list): List of column names to check.
+
+    Returns:
+        dict: Dictionary with column names as keys and NULL counts as values.
+              If a column has 0 nulls, its value will be 0.
+    """
+    null_results = {}
+    try:
+        cursor = connection.cursor()
+        for column in columns:
+            query = f"""
+                SELECT COUNT(*) 
+                FROM {schema}.{table}
+                WHERE {column} IS NULL;
+            """
+            cursor.execute(query)
+            null_count = cursor.fetchone()[0]
+            null_results[column] = null_count
+        return null_results
+    except Exception as e:
+        return {"error": str(e)}
+
+
 def validate_row_count_match(source_conn, target_conn, source_schema, source_table, target_schema, target_table):
     """
     🔁 Validate if row count between source and target tables is the same.
@@ -699,5 +730,44 @@ def validate_target_to_source_with_filter(
         error_message = f"❌ Error during target-to-source completeness validation: {str(e)}"
         logging.exception(error_message)
         return False, -1, error_message
+    
+import logging
 
+def run_and_validate_empty_query(connection, query, description="Query validation"):
+    """
+    Runs a query and returns True if no records are returned, otherwise False.
+
+    Args:
+        connection: Active database connection object (e.g., psycopg2).
+        query (str): SQL query to execute.
+        description (str): Optional description of the test case.
+
+    Returns:
+        tuple: (bool, int, str) - success status, record count, message
+    """
+    try:
+        cursor = connection.cursor()
+        logging.info(f"🔍 Running validation query: {description}")
+        logging.debug(f"Executing SQL:\n{query}")
+
+        cursor.execute(query)
+        results = cursor.fetchall()
+        result_count = len(results)
+
+        if result_count == 0:
+            message = f"✅ {description} passed: Query returned no records."
+            logging.info(message)
+            print(message)
+            return True, 0, message
+        else:
+            message = f"❌ {description} failed: Query returned {result_count} records."
+            logging.warning(message)
+            print(message)
+            return False, result_count, message
+
+    except Exception as e:
+        error_message = f"❌ Error running validation query: {str(e)}"
+        logging.exception(error_message)
+        print(error_message)
+        return False, -1, error_message
 
