@@ -17,10 +17,10 @@ def validation():
     return {
         "source_db": "regcor_refine_db",
         "source_schema": "regcor_refine",
-        "source_table": "",   
+        "source_table": "country",   
         "target_db": "regcor_refine_db" ,
         "target_schema": "regcor_refine",        
-        "target_table": "dim_regcor_country",
+        "target_table": "stg_dim_regcor_country",
     }
 
 def test_validate_connection(db_connection: connection | None, validation: dict[str, str]):
@@ -88,48 +88,54 @@ def test_TS_RDCC_58_TC_RDCC_60_country_name_check(db_connection: connection | No
     print(f"\n{validation['target_db']}.{validation['target_schema']}.{validation['target_table']}.country_name"
         f" contains NO NULL values!\n")
 
-    success, count, msg = validate_source_to_target_with_filter(
-        connection=db_connection,
-        src_schema=validation['source_schema'],
-        src_table="country",
-        tgt_schema=validation['target_schema'],
-        tgt_table=validation['target_table'],
-        src_cols=['name__v'],
-        tgt_cols=['country_name'],
-        src_filter=f"status__v::text != '{{inactive__v}}'",
-        tgt_filter=""
-    )
+    query = f"""select name__v from {validation['source_schema']}.{validation['source_table']} 
+        where status__v::text != '{{inactive__v}}' and country_code__rim is not null
+        except
+        select country_name from {validation['target_schema']}.{validation['target_table']}""" 
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+    try:
+        if diff_count == 0:
+            message = f"✅ Source-to-Target check passed: All records from {validation['target_table']} exist in {validation['source_table']}."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Source-to-Target check failed: {diff_count} records in {validation['target_table']} missing from {validation['source_table']}."
+            logging.error(message)
+            test = False
 
-    print(msg)
-    assert success, msg
+    except Exception as e:
+        message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
+        
+    assert test,message
+    print(message)
 
-    success, count, msg = validate_target_to_source_with_filter(
-        connection=db_connection,
-        src_schema=validation['source_schema'],
-        src_table="country",
-        tgt_schema=validation['target_schema'],
-        tgt_table=validation['target_table'],
-        src_cols=['name__v'],
-        tgt_cols=['country_name'],
-        src_filter=f"status__v::text != '{{inactive__v}}'",
-        tgt_filter=""
-    )
+    query = f"""select country_name from {validation['target_schema']}.{validation['target_table']}
+        except select name__v from {validation['source_schema']}.{validation['source_table']} 
+        where status__v::text != '{{inactive__v}}' and country_code__rim is not null
+        """ 
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+    try:
+        if diff_count == 0:
+            message = f"✅ Source-to-Target check passed: All records from {validation['target_table']} exist in {validation['source_table']}."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Source-to-Target check failed: {diff_count} records in {validation['target_table']} missing from {validation['source_table']}."
+            logging.error(message)
+            test = False
 
-    assert success, msg
+    except Exception as e:
+        message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
+        
+    assert test,message
+    print(message)
 
-    result, count, msg = validate_target_to_source_with_filter(
-    connection=db_connection,
-    src_schema=validation['source_schema'],
-    src_table="country",
-    tgt_schema=validation["target_schema"],
-    tgt_table="dim_regcor_country",
-    src_cols=['name__v'],
-    tgt_cols=['country_name'],
-    src_filter=f"status__v::text != '{{inactive__v}}'",
-    tgt_filter=""
-    )
-    print(msg)
-    assert result, msg
 
 def test_TS_RDCC_58_TC_RDCC_61_country_flag_check(db_connection: connection | None,validation: dict[str, str]):
  
@@ -166,37 +172,76 @@ def test_TS_RDCC_58_TC_RDCC_62_Primary_key_check(db_connection: connection | Non
     print(f"\n{validation['target_db']}.{validation['target_schema']}.{validation['target_table']}.country_code"
         f" contains NO NULL values!\n")
     
-def test_TS_RDCC_58_TC_RDCC_62_filter_condition_check(db_connection: connection | None,validation: dict[str, str]):
+def test_TS_RDCC_58_TC_RDCC_63_filter_condition_check(db_connection: connection | None,validation: dict[str, str]):
  
     print(f"\nTest Case - RDCC-62 - This Test case validates the Filter condition on active status to fetch country details from source table.\n")
 
-    result, count, msg = validate_target_to_source_with_filter(
-    connection=db_connection,
-    src_schema=validation['source_schema'],
-    src_table="country",
-    tgt_schema=validation["target_schema"],
-    tgt_table="dim_regcor_country",
-    src_cols=['country_code__rim','name__v'],
-    tgt_cols=['country_code','country_name'],
-    src_filter=f"status__v::text != '{{inactive__v}}'",
-    tgt_filter=""
-    )
-    print(msg)
-    assert result, msg
+    query = f"""SELECT 
+    drc.country_code, 
+    drc.country_name 
+    FROM 
+        {validation['target_schema']}.{validation['target_table']} drc 
+    EXCEPT
+    SELECT 
+        c.country_code__rim, 
+        c.Name__v 
+    FROM 
+        {validation['source_schema']}.{validation['source_table']} c 
+    WHERE 
+    c.status__v::text = '{{active__v}}';
+        """ 
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+    try:
+        if diff_count == 0:
+            message = f"✅ Source-to-Target check passed: All records from {validation['target_table']} exist in {validation['source_table']}."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Source-to-Target check failed: {diff_count} records in {validation['target_table']} missing from {validation['source_table']}."
+            logging.error(message)
+            test = False
 
-    result, count, msg = validate_source_to_target_with_filter(
-    connection=db_connection,
-    src_schema=validation['source_schema'],
-    src_table="country",
-    tgt_schema=validation["target_schema"],
-    tgt_table="dim_regcor_country",
-    src_cols=['country_code__rim','name__v'],
-    tgt_cols=['country_code','country_name'],
-    src_filter=f"status__v::text != '{{inactive__v}}'",
-    tgt_filter=""
-    )
-    print(msg)
-    assert result, msg
+    except Exception as e:
+        message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
+        
+    assert test,message
+    print(message)
+
+    query = f"""SELECT 
+    c.country_code__rim, 
+    c.Name__v 
+    FROM 
+        {validation['source_schema']}.{validation['source_table']} c 
+    WHERE 
+        c.status__v::text = '{{active__v}}' and c.id is  null
+    EXCEPT
+    SELECT 
+        drc.country_code, 
+        drc.country_name 
+    FROM 
+    {validation['target_schema']}.{validation['target_table']} drc""" 
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+    try:
+        if diff_count == 0:
+            message = f"✅ Source-to-Target check passed: All records from {validation['target_table']} exist in {validation['source_table']}."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Source-to-Target check failed: {diff_count} records in {validation['target_table']} missing from {validation['source_table']}."
+            logging.error(message)
+            test = False
+
+    except Exception as e:
+        message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
+        
+    assert test,message
+    print(message)
 
 
 

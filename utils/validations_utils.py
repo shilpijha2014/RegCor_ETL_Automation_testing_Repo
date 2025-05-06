@@ -444,7 +444,7 @@ def check_col_key_data_completeness(connection, src_schema, src_table, src_key,
             cursor.close()
 
 
-def check_primary_key_duplicates(connection, schema_name, table_name, primary_keys  ):
+def check_primary_key_duplicates(connection, schema_name, table_name, primary_keys ):
     """
     Validates if there are duplicate values for the given primary key(s).
 
@@ -467,6 +467,7 @@ def check_primary_key_duplicates(connection, schema_name, table_name, primary_ke
             GROUP BY {key_columns}
             HAVING COUNT(*) > 1;
         """
+        print(query)
         cursor.execute(query)
         duplicates = cursor.fetchall()
 
@@ -711,6 +712,7 @@ def validate_target_to_source_with_filter(
             FROM {src_schema}.{src_table}
             {src_where};
         """
+        print(query)
 
         logging.debug("Executing Target-to-Source EXCEPT query:\n%s", query)
         cursor.execute(query)

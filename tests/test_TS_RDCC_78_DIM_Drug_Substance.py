@@ -20,7 +20,7 @@ def validation():
         "source_table": "dim_rdm_regcor_master_table",   
         "target_db": "regcor_refine_db" ,
         "target_schema": "regcor_refine",        
-        "target_table": "dim_regcor_drug_substance"
+        "target_table": "stg_dim_regcor_drug_substance"
     }
 
 #This Test set includes tests of DIM Drug Substance.

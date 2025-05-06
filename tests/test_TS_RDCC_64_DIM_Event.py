@@ -20,7 +20,7 @@ def validation():
         "source_table": "event",   
         "target_db": "regcor_refine_db" ,
         "target_schema": "regcor_refine",        
-        "target_table": "dim_regcor_event",
+        "target_table": "stg_dim_regcor_event",
     }
 # This Test set contains test cases for Dim Event table
 def test_validate_connection(db_connection: connection | None, validation: dict[str, str]):
