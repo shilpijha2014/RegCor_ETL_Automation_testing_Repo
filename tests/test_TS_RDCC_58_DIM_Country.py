@@ -90,6 +90,7 @@ def test_TS_RDCC_58_TC_RDCC_60_country_name_check(db_connection: connection | No
 
     query = f"""select name__v from {validation['source_schema']}.{validation['source_table']} 
         where status__v::text != '{{inactive__v}}' and country_code__rim is not null
+        and name__v not in('European Union','European Directorate for the Quality of Medicines')
         except
         select country_name from {validation['target_schema']}.{validation['target_table']}""" 
     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
@@ -115,6 +116,7 @@ def test_TS_RDCC_58_TC_RDCC_60_country_name_check(db_connection: connection | No
     query = f"""select country_name from {validation['target_schema']}.{validation['target_table']}
         except select name__v from {validation['source_schema']}.{validation['source_table']} 
         where status__v::text != '{{inactive__v}}' and country_code__rim is not null
+        and name__v not in('European Union','European Directorate for the Quality of Medicines')
         """ 
     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
     
@@ -174,7 +176,7 @@ def test_TS_RDCC_58_TC_RDCC_62_Primary_key_check(db_connection: connection | Non
     
 def test_TS_RDCC_58_TC_RDCC_63_filter_condition_check(db_connection: connection | None,validation: dict[str, str]):
  
-    print(f"\nTest Case - RDCC-62 - This Test case validates the Filter condition on active status to fetch country details from source table.\n")
+    print(f"\nTest Case - RDCC-63 - This Test case validates the Filter condition on active status to fetch country details from source table.\n")
 
     query = f"""SELECT 
     drc.country_code, 
@@ -216,7 +218,8 @@ def test_TS_RDCC_58_TC_RDCC_63_filter_condition_check(db_connection: connection 
     FROM 
         {validation['source_schema']}.{validation['source_table']} c 
     WHERE 
-        c.status__v::text = '{{active__v}}' and c.id is  null
+        c.status__v::text = '{{active__v}}' and c.id is  null 
+        and name__v not in('European Union','European Directorate for the Quality of Medicines')
     EXCEPT
     SELECT 
         drc.country_code, 

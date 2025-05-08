@@ -76,7 +76,6 @@ def test_TS_RDCC_78_TC_RDCC_79_data_completeness(db_connection: connection | Non
     print(msg)
     assert result, msg
 
-def test_TS_RDCC_78_TC_RDCC_79_null_check(db_connection, validation):
     print("\nIdentify there is no Null values for ds_material_number in dim table.\n")
     columns_to_check = ["ds_material_number"]
     result = check_columns_for_nulls(db_connection, validation['target_schema'], validation['target_table'], columns_to_check)
@@ -86,7 +85,7 @@ def test_TS_RDCC_78_TC_RDCC_79_null_check(db_connection, validation):
         print(message)
         assert null_count == 0, message
 
-def test_TS_RDCC_78_TC_RDCC_80_process_identifier(db_connection: connection | None,validation: dict[str, str]):
+def test_TS_RDCC_78_TC_RDCC_80_process_identifier_validation(db_connection: connection | None,validation: dict[str, str]):
     print("\nIdentify process_identfier in the dim_regcor_drug_substance table that are missing in the source table (dim_rdm_regcor_master_table): \n")
     query =f"""SELECT tgt.process_identifier 
     FROM {validation['target_schema']}.{validation['target_table']} tgt
@@ -146,7 +145,6 @@ def test_TS_RDCC_78_TC_RDCC_80_process_identifier(db_connection: connection | No
     assert test,message
     print(message)
 
-def test_TS_RDCC_78_TC_RDCC_79_null_check(db_connection, validation):
     print("\nIdentify there is no Null values for process_identifier in dim table.\n")
     columns_to_check = ["process_identifier"]
     result = check_columns_for_nulls(db_connection, validation['target_schema'], validation['target_table'], columns_to_check)
@@ -155,6 +153,319 @@ def test_TS_RDCC_78_TC_RDCC_79_null_check(db_connection, validation):
         message = f"✅ Column '{col}' has no NULL values." if null_count == 0 else f"❌ Column '{col}' contains {null_count} NULL values."
         print(message)
         assert null_count == 0, message
+
+def test_TS_RDCC_78_TC_RDCC_81_drug_substance_validation(db_connection: connection | None,validation: dict[str, str]):
+    print("\nIdentify drug_substance in the dim_regcor_drug_substance table that are missing in the source table (dim_rdm_regcor_master_table): \n")
+    query =f"""SELECT 
+    tgt.drug_substance
+    FROM {validation['target_schema']}.{validation['target_table']} tgt
+    except
+    SELECT  
+        MAX(CASE WHEN property_name = 'RIM Drug Substance' THEN property_value END) AS drug_substance
+    FROM {validation['source_schema']}.{validation['source_table']}
+    WHERE vocabulary_name = 'DS Flavor'
+    GROUP BY concept_code"""
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+    try:
+        if diff_count == 0:
+            message = f"✅ Target-to-Source check passed: All records from {validation['target_table']} exist in {validation['source_table']}."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Target-to-Source check failed: {diff_count} records in {validation['target_table']} missing from {validation['source_table']}."
+            logging.error(message)
+            test = False
+
+    except Exception as e:
+        message = f"❌ Error during target-to-source completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
+        
+    assert test,message
+    print(message)
+
+    query =f"""SELECT  
+        MAX(CASE WHEN property_name = 'RIM Drug Substance' THEN property_value END) AS drug_substance
+        FROM {validation['source_schema']}.{validation['source_table']}
+        WHERE vocabulary_name = 'DS Flavor'
+        GROUP BY concept_code
+        except 
+        SELECT 
+            tgt.drug_substance
+        FROM {validation['target_schema']}.{validation['target_table']} tgt"""
+    
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+    try:
+        if diff_count == 0:
+            message = f"✅ Source-to-Target check passed: All records from {validation['source_table']} exist in {validation['target_table']}."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Source-to-Target check failed: {diff_count} records in {validation['source_table']} missing from {validation['target_table']}."
+            logging.error(message)
+            test = False
+
+    except Exception as e:
+        message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
+        
+    assert test,message
+    print(message)
+
+    print("\nIdentify there is no Null values for drug_substance in dim table.\n")
+    columns_to_check = ["drug_substance"]
+    result = check_columns_for_nulls(db_connection, validation['target_schema'], validation['target_table'], columns_to_check)
+
+    for col, null_count in result.items():
+        message = f"✅ Column '{col}' has no NULL values." if null_count == 0 else f"❌ Column '{col}' contains {null_count} NULL values."
+        print(message)
+        assert null_count == 0, message
+
+def test_TS_RDCC_78_TC_RDCC_82_drug_substance_manufacturer_validation(db_connection: connection | None,validation: dict[str, str]):
+    print("\nIdentify drug_substance_manufacturer in the dim_regcor_drug_substance table that are missing in the source table (dim_rdm_regcor_master_table): \n")
+    query =f"""SELECT 
+    tgt.drug_substance_manufacturer
+    FROM {validation['target_schema']}.{validation['target_table']} tgt
+    except
+    SELECT  
+        max(case when property_name = 'Manufacturer' then property_value end) as drug_substance_manufacturer 
+        FROM {validation['source_schema']}.{validation['source_table']}
+        WHERE vocabulary_name = 'DS Flavor'
+        GROUP BY concept_code"""
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+    try:
+        if diff_count == 0:
+            message = f"✅ Target-to-Source check passed: All records from {validation['target_table']} exist in {validation['source_table']}."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Target-to-Source check failed: {diff_count} records in {validation['target_table']} missing from {validation['source_table']}."
+            logging.error(message)
+            test = False
+
+    except Exception as e:
+        message = f"❌ Error during target-to-source completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
+        
+    assert test,message
+    print(message)
+
+    query =f"""SELECT  
+        max(case when property_name = 'Manufacturer' then property_value end) as drug_substance_manufacturer 
+        FROM {validation['source_schema']}.{validation['source_table']}
+        WHERE vocabulary_name = 'DS Flavor'
+        GROUP BY concept_code
+        except 
+        SELECT 
+            tgt.drug_substance_manufacturer
+        FROM {validation['target_schema']}.{validation['target_table']} tgt"""
+    
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+    try:
+        if diff_count == 0:
+            message = f"✅ Source-to-Target check passed: All records from {validation['source_table']} exist in {validation['target_table']}."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Source-to-Target check failed: {diff_count} records in {validation['source_table']} missing from {validation['target_table']}."
+            logging.error(message)
+            test = False
+
+    except Exception as e:
+        message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
+        
+    assert test,message
+    print(message)
+
+    print("\nIdentify there is no Null values for drug_substance in dim table.\n")
+    columns_to_check = ["drug_substance_manufacturer"]
+    result = check_columns_for_nulls(db_connection, validation['target_schema'], validation['target_table'], columns_to_check)
+
+    for col, null_count in result.items():
+        message = f"✅ Column '{col}' has no NULL values." if null_count == 0 else f"❌ Column '{col}' contains {null_count} NULL values."
+        print(message)
+        assert null_count == 0, message
+
+def test_TS_RDCC_78_TC_RDCC_83_family_item_code_validation(db_connection: connection | None,validation: dict[str, str]):
+    print("\nIdentify family_item_code in the dim_regcor_drug_substance table that are missing in the source table (dim_rdm_regcor_master_table): \n")
+    query =f"""SELECT 
+    tgt.family_item_code
+    FROM {validation['target_schema']}.{validation['target_table']} tgt
+    except
+    SELECT  
+        MAX(CASE WHEN property_name = 'Family Item Code' THEN property_value END) AS family_item_code
+        FROM {validation['source_schema']}.{validation['source_table']}
+        WHERE vocabulary_name = 'DS Flavor'
+        GROUP BY concept_code
+"""
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+    try:
+        if diff_count == 0:
+            message = f"✅ Target-to-Source check passed: All records from {validation['target_table']} exist in {validation['source_table']}."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Target-to-Source check failed: {diff_count} records in {validation['target_table']} missing from {validation['source_table']}."
+            logging.error(message)
+            test = False
+
+    except Exception as e:
+        message = f"❌ Error during target-to-source completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
+        
+    assert test,message
+    print(message)
+
+    query =f"""SELECT  
+    MAX(CASE WHEN property_name = 'Family Item Code' THEN property_value END) AS family_item_code
+    FROM {validation['source_schema']}.{validation['source_table']}
+    WHERE vocabulary_name = 'DS Flavor'
+    GROUP BY concept_code
+    except 
+    SELECT 
+        tgt.family_item_code
+    FROM {validation['target_schema']}.{validation['target_table']} tgt"""
+    
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+    try:
+        if diff_count == 0:
+            message = f"✅ Source-to-Target check passed: All records from {validation['source_table']} exist in {validation['target_table']}."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Source-to-Target check failed: {diff_count} records in {validation['source_table']} missing from {validation['target_table']}."
+            logging.error(message)
+            test = False
+
+    except Exception as e:
+        message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
+        
+    assert test,message
+    print(message)
+
+    print("\nIdentify there is no Null values for drug_substance in dim table.\n")
+    columns_to_check = ["family_item_code"]
+    result = check_columns_for_nulls(db_connection, validation['target_schema'], validation['target_table'], columns_to_check)
+
+    for col, null_count in result.items():
+        message = f"✅ Column '{col}' has no NULL values." if null_count == 0 else f"❌ Column '{col}' contains {null_count} NULL values."
+        print(message)
+        assert null_count == 0, message
+
+def test_TS_RDCC_78_TC_RDCC_84_validations(db_connection: connection | None,validation: dict[str, str]):
+    print("\nIdentify manufacturer_id and sap_plant_code in the dim_regcor_drug_substance table that are missing in the source table (dim_rdm_regcor_master_table): \n")
+    query =f"""select drug_substance_manufacturer,manufacturer_id,sap_plant_code 
+        from {validation['target_schema']}.{validation['target_table']} ds   
+        except 
+        select 
+        ds.drug_substance_manufacturer, 
+        dm.manufacturer_id, 
+        dm.sap_plant_code 
+        from 
+        ( 
+        select 
+        max(case when property_name = 'Manufacturer' then property_value end) as drug_substance_manufacturer 
+        from 
+        {validation['source_schema']}.{validation['source_table']}
+        where 
+        vocabulary_name = 'DS Flavor' 
+        group by 
+        concept_code, 
+        concept_name) ds 
+        left join regcor_refine.dim_regcor_manufacturer dm on 
+        ds.drug_substance_manufacturer = dm.manufacturer
+"""
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+    try:
+        if diff_count == 0:
+            message = f"✅ Target-to-Source check passed: All records from {validation['target_table']} exist in {validation['source_table']}."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Target-to-Source check failed: {diff_count} records in {validation['target_table']} missing from {validation['source_table']}."
+            logging.error(message)
+            test = False
+
+    except Exception as e:
+        message = f"❌ Error during target-to-source completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
+        
+    assert test,message
+    print(message)
+
+    query =f"""select 
+        ds.drug_substance_manufacturer, 
+        dm.manufacturer_id, 
+        dm.sap_plant_code 
+        from 
+        ( 
+        select 
+        max(case when property_name = 'Manufacturer' then property_value end) as drug_substance_manufacturer 
+        from 
+        {validation['source_schema']}.{validation['source_table']}
+        where 
+        vocabulary_name = 'DS Flavor' 
+        group by 
+        concept_code, 
+        concept_name) ds 
+        left join regcor_refine.dim_regcor_manufacturer dm on 
+        ds.drug_substance_manufacturer = dm.manufacturer 
+        except 
+        select drug_substance_manufacturer,manufacturer_id,sap_plant_code 
+        from {validation['target_schema']}.{validation['target_table']} ds"""
+    
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+    try:
+        if diff_count == 0:
+            message = f"✅ Source-to-Target check passed: All records from {validation['source_table']} exist in {validation['target_table']}."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Source-to-Target check failed: {diff_count} records in {validation['source_table']} missing from {validation['target_table']}."
+            logging.error(message)
+            test = False
+
+    except Exception as e:
+        message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
+        
+    assert test,message
+    print(message)
+
+
+
+def test_TS_RDCC_78_TC_RDCC_87_PK_Check(db_connection: connection | None,validation: dict[str, str]):
+    print("\nThis Test case validates the Duplicates,Null checks of Primary key column ds_material_number in DIM table.\n")
+    # -- Check for duplicates in primary keys 
+    print(f"1.Check for Duplicates\n")
+    primary_keys = ['ds_material_number']
+    result = check_primary_key_duplicates(
+    connection=db_connection,
+    schema_name=validation['target_schema'],
+    table_name=validation["target_table"],
+    primary_keys=primary_keys)
+    assert result, f"❌ Duplicate values found in customers table for keys {primary_keys}!"
+    print(f"✅ Duplicate values Not found in customers table for keys {primary_keys}")
+
+
+
 
 
 
