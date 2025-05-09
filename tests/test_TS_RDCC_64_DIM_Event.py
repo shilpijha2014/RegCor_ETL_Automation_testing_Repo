@@ -354,8 +354,8 @@ def test_TS_RDCC_64_TC_RDCC_68_Primary_Key_Validation(db_connection: connection 
     schema_name=validation['target_schema'],
     table_name=validation["target_table"],
     primary_keys=primary_keys)
-    assert result, f"❌ Duplicate values found in customers table for keys {primary_keys}!"
-    print(f"✅ Duplicate values Not found in customers table for keys {primary_keys}")
+    assert result, f"❌ Duplicate values found in {validation["target_table"]} table for keys {primary_keys}!"
+    print(f"✅ Duplicate values Not found in {validation["target_table"]} table for keys {primary_keys}")
 
     null_count = check_null_values(db_connection,validation["target_schema"],validation["target_table"],"event_id")
 

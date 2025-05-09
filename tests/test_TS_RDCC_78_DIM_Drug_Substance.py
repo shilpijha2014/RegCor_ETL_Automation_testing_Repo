@@ -464,6 +464,95 @@ def test_TS_RDCC_78_TC_RDCC_87_PK_Check(db_connection: connection | None,validat
     assert result, f"❌ Duplicate values found in customers table for keys {primary_keys}!"
     print(f"✅ Duplicate values Not found in customers table for keys {primary_keys}")
 
+    print("\nIdentify there is no Null values for ds_material_number in dim table.\n")
+    columns_to_check = ["ds_material_number"]
+    result = check_columns_for_nulls(db_connection, validation['target_schema'], validation['target_table'], columns_to_check)
+
+    for col, null_count in result.items():
+        message = f"✅ Column '{col}' has no NULL values." if null_count == 0 else f"❌ Column '{col}' contains {null_count} NULL values."
+        print(message)
+        assert null_count == 0, message
+
+
+def test_TS_RDCC_78_TC_RDCC_126_No_source_value_transformation_validation(db_connection: connection | None,validation: dict[str, str]):
+    print(f"RDCC-126-This test case validates the coulmns in dim drug substance is being transformed as no_source_values in case of null present in source table.\n")
+    
+    query =f"""WITH source_data AS (
+    SELECT 
+        COALESCE(ds.ds_material_number, 'No_Source_Value') AS ds_material_number,
+        ds.drug_substance_manufacturer,
+        dm.manufacturer_id,
+        ds.drug_substance,
+        ds.process_identifier,
+        ds.family_item_code,
+        CONCAT(ds.concept_name, '|', ds.drug_substance_manufacturer) AS drug_substance_manufacturer_key,
+        dm.sap_plant_code,
+        CONCAT(ds.ds_material_number, '|', dm.sap_plant_code) AS material_plant_key
+    FROM (
+        SELECT 
+            concept_code AS ds_material_number,
+            concept_name,
+            MAX(CASE WHEN property_name = 'Family Item Code' THEN property_value END) AS family_item_code,
+            MAX(CASE WHEN property_name = 'Process Identifier' THEN property_value END) AS process_identifier,
+            MAX(CASE WHEN property_name = 'RIM Drug Substance' THEN property_value END) AS drug_substance,
+            MAX(CASE WHEN property_name = 'Manufacturer' THEN property_value END) AS drug_substance_manufacturer
+        FROM 
+            {validation['source_schema']}.{validation['source_table']} 
+        WHERE 
+            vocabulary_name = 'DS Flavor'
+        GROUP BY 
+            concept_code, 
+            concept_name
+    ) ds
+    LEFT JOIN regcor_refine.dim_regcor_manufacturer dm 
+    ON ds.drug_substance_manufacturer = dm.manufacturer
+    )
+    SELECT 
+        s.ds_material_number AS source_ds_material_number,
+        t.ds_material_number AS target_ds_material_number,
+        s.family_item_code AS source_family_item_code,
+        t.family_item_code AS target_family_item_code,
+        s.drug_substance AS source_drug_substance,
+        t.drug_substance AS target_drug_substance
+    FROM 
+        source_data s
+    FULL OUTER JOIN 
+        {validation['target_schema']}.{validation['target_table']} t
+    ON 
+        s.ds_material_number = t.ds_material_number
+    WHERE 
+        s.family_item_code != t.family_item_code
+        OR s.drug_substance != t.drug_substance
+        OR t.ds_material_number IS NULL
+        OR s.ds_material_number IS NULL"""
+
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+    try:
+        if diff_count == 0:
+            message = f"""✅ No Source Value transformation check passed: All NULL values from {validation['target_table']} is getting transformed in {validation['source_table']} as No_Source_Value."""
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ No Source Value transformation check passed: All NULL values from {validation['source_table']} is not getting transformed in {validation['target_table']} as No_Source_Value."
+            logging.error(message)
+            test = False
+
+    except Exception as e:
+        message = f"❌ Error during NULLs to No_Source_value transformation validation: {str(e)}"
+        logging.exception(message)
+        test = False
+
+    assert test,message
+    print(message)
+
+
+
+
+
+
+    
+
 
 
 
