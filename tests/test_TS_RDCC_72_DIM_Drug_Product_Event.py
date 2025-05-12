@@ -142,8 +142,8 @@ def test_TS_RDCC_72_TC_RDCC_74_primary_key_check(db_connection: connection | Non
     schema_name=validation['target_schema'],
     table_name=validation["target_table"],
     primary_keys=primary_keys)
-    assert result, f"❌ Duplicate values found in customers table for keys {primary_keys}!"
-    print(f"✅ Duplicate values Not found in customers table for keys {primary_keys}")
+    assert result, f"❌ Duplicate values found in {validation["target_table"]} table for keys {primary_keys}!"
+    print(f"✅ Duplicate values Not found in {validation["target_table"]} table for keys {primary_keys}")
 
     columns_to_check = ["dp_material_number", "event_id"]
     result = check_columns_for_nulls(db_connection, validation['target_schema'], validation['target_table'], columns_to_check)

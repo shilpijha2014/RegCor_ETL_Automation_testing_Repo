@@ -88,7 +88,54 @@ def check_columns_for_nulls(connection, schema, table, columns):
         return null_results
     except Exception as e:
         return {"error": str(e)}
+    
+import logging
 
+def check_all_columns_null_combination(connection, schema, table, columns):
+    """
+    Checks if any row has NULLs in ALL of the specified columns.
+
+    Args:
+        connection: Database connection object.
+        schema (str): Schema name.
+        table (str): Table name.
+        columns (list): List of column names.
+
+    Returns:
+        tuple: (bool, int, str) - (is_valid, count_of_null_rows, message)
+    """
+    try:
+        cursor = connection.cursor()
+
+        # Build AND condition to check if all columns are NULL
+        null_condition = " AND ".join([f"{col} IS NULL" for col in columns])
+        column_list = ", ".join(columns)
+
+        query = f"""
+            SELECT COUNT(*)
+            FROM {schema}.{table}
+            WHERE {null_condition}"""
+        print(query)
+        cursor.execute(query)
+        null_rows = cursor.fetchone()[0]
+
+        if null_rows == 0:
+            message = f"✅ No rows found where all of the columns ({column_list}) are NULL."
+            logging.info(message)
+            return True, 0, message
+        else:
+            message = f"❌ {null_rows} row(s) found where all of the columns ({column_list}) are NULL."
+            logging.warning(message)
+            return False, null_rows, message
+
+    except Exception as e:
+        error_msg = f"❌ Error checking NULL combinations: {str(e)}"
+        logging.exception(error_msg)
+        return False, -1, error_msg
+
+    finally:
+        if cursor:
+            cursor.close()
 
 def validate_row_count_match(source_conn, target_conn, source_schema, source_table, target_schema, target_table):
     """

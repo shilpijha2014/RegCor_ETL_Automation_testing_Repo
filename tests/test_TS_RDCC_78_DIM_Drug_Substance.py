@@ -461,8 +461,8 @@ def test_TS_RDCC_78_TC_RDCC_87_PK_Check(db_connection: connection | None,validat
     schema_name=validation['target_schema'],
     table_name=validation["target_table"],
     primary_keys=primary_keys)
-    assert result, f"❌ Duplicate values found in customers table for keys {primary_keys}!"
-    print(f"✅ Duplicate values Not found in customers table for keys {primary_keys}")
+    assert result, f"❌ Duplicate values found in {validation["target_table"]} table for keys {primary_keys}!"
+    print(f"✅ Duplicate values Not found in {validation["target_table"]} table for keys {primary_keys}")
 
     print("\nIdentify there is no Null values for ds_material_number in dim table.\n")
     columns_to_check = ["ds_material_number"]
