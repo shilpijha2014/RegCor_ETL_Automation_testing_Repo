@@ -17,20 +17,20 @@ def validation():
     return {
         "source_db": "regcor_refine_db",
         "source_schema": "regcor_refine",
-        "source_table": "t_ompj_proj",   
+        "source_table": "dim_rdm_regcor_master_table",   
         "target_db": "regcor_refine_db" ,
         "target_schema": "regcor_refine",        
-        "target_table": "dim_rdm_regcor_master_table"
+        "target_table": "stg_dim_regcor_product_family_item_configuration"
     }
 
-#This Test set includes test cases of DIM master RDM.
+#This Test set includes test cases of DIM Product Family Item Configuration .
 
 def test_validate_connection(db_connection: connection | None, validation: dict[str, str]):
     """
     Test to validate that a connection to the database can be established.
     """
     try:
-        print(f"\nTest Set-RDCC- 107 - This Test set includes test cases of DIM Manufacturer.\n")
+        print(f"\nTest Set-RDCC- 113 - This Test set includes test cases of DIM Product Family Item Configuration.\n")
         
         assert db_connection is not None, f"❌ Connection object is None for {validation['target_db']}"
         print(f"✅ Successfully connected to database: {validation['target_db']}")
@@ -43,13 +43,15 @@ def test_table_exists(db_connection: connection | None,validation: dict[str, str
     assert validate_table_exists( db_connection,validation["target_schema"], validation["target_table"]), "❌ Target Table does not exist!"
     print(f"\nTable {validation["target_table"]} exists.")
 
-def test_TS_RDCC_129_TC_RDCC_130_project_name_validation(db_connection: connection | None,validation: dict[str, str]): 
-    print(f"RDCC-130-This Test case validates project_name coulmn  data in dim master rdm  table is correctly fetched from t_ompj_proj  by filtering PJ_PJ_SEQ with 'Project id' \n")
-    print(f"Test 1 : Identify project_name in the dim_rdm_regcor_master_table table that are missing in the source table (t_ompj_proj):\n")
-    query =f"""select distinct dm.project_name from  {validation['target_schema']}.{validation['target_table']}  dm
-        except
-        select distinct project."PJ_PJ_NAME" from {validation['source_schema']}.{validation['source_table']} project
-        where project."PJ_PJ_NAME" = 'RegCoR' and project."PJ_PJ_SEQ"='1332'"""
+def test_TS_RDCC_113_TC_RDCC_114_product_configuration_name_validation(db_connection: connection | None,validation: dict[str, str]): 
+    print(f"RDCC-114-This test case ensures that the product_configuration_name column data in the dim_product_family_item_configuration table is accurately retrieved from the dim_rdm_regcor_master_table by filtering the vocabulary name with 'Product Family Item Configuration'.\n")
+    print(f"Test 1 : Identify product_configuration_name in the dim_regcor_product_family_item_configuration table that are missing in the source table (dim_rdm_regcor_master_table):\n")
+    query =f"""select drds.product_configuration_name 
+                from {validation['target_schema']}.{validation['target_table']} drds
+                except
+                select drrmt.concept_code 
+                from {validation['source_schema']}.{validation['source_table']} drrmt 
+                where drrmt.vocabulary_name='Product Family Item Configuration'"""
 
     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
     
@@ -72,10 +74,12 @@ def test_TS_RDCC_129_TC_RDCC_130_project_name_validation(db_connection: connecti
     print(message)
 
     query =f"""
-        select distinct project."PJ_PJ_NAME" as source_project_name from {validation['source_schema']}.{validation['source_table']} project
-        where project."PJ_PJ_NAME" = 'RegCoR' and project."PJ_PJ_SEQ"='1332'
+        select drrmt.concept_code 
+                from {validation['source_schema']}.{validation['source_table']} drrmt 
+                where drrmt.vocabulary_name='Product Family Item Configuration'
         except 
-        select distinct dm.project_name from  {validation['target_schema']}.{validation['target_table']} dm
+        select drds.product_configuration_name 
+                from {validation['target_schema']}.{validation['target_table']} drds
 """
     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
     
@@ -97,8 +101,8 @@ def test_TS_RDCC_129_TC_RDCC_130_project_name_validation(db_connection: connecti
     assert test,message
     print(message)
 
-    print("\nIdentify there is Null values for project_name  in dim_rdm_regcor_master_table table.\n")
-    columns_to_check = ["project_name"]
+    print(f"\nIdentify there is Null values for product_configuration_name  in {validation['target_table']} table.\n")
+    columns_to_check = ["product_configuration_name"]
     result = check_columns_for_nulls(db_connection, validation['target_schema'], validation['target_table'], columns_to_check)
 
     for col, null_count in result.items():
@@ -106,18 +110,16 @@ def test_TS_RDCC_129_TC_RDCC_130_project_name_validation(db_connection: connecti
         print(message)
         assert null_count == 0, message 
 
-def test_TS_RDCC_129_TC_RDCC_131_vocabulary_name_validation(db_connection: connection | None,validation: dict[str, str]): 
-    print(f"RDCC-131-This Test case validates vocabulary name coulmn  data in dim master rdm  table is correctly fetched from t_omco_cncpt   by filtering PJ_PJ_SEQ with 'Project id'\n")
-    print(f"Test 1 : Identify vocabulary name in the dim_rdm_regcor_master_table table that are missing in the source table (t_omco_cncpt):\n")
-    query =f"""select distinct dm.vocabulary_name from  
-            {validation['target_schema']}.{validation['target_table']} dm
-            except
-            select vocabulary."VO_VO_NAME" from  {validation['source_schema']}.t_omvo_voc vocabulary,
-             {validation['source_schema']}.{validation['source_table']} project
-            where project."PJ_PJ_SEQ" = vocabulary."VO_PJ_SEQ" and project."PJ_PJ_NAME" = 'RegCoR'
+def test_TS_RDCC_113_TC_RDCC_115_description_validation(db_connection: connection | None,validation: dict[str, str]): 
+    print(f"RDCC-115-This test case ensures that the description column data in the dim_product_family_item_configuration table is accurately retrieved from the dim_rdm_regcor_master_table by filtering the vocabulary name with 'Product Family Item Configuration'.\n")
+    print(f"Test 1 : Identify description in the dim_regcor_product_family_item_configuration table that are missing in the source table (dim_rdm_regcor_master_table):\n")
+    query =f"""select drds.description  
+                from {validation['target_schema']}.{validation['target_table']} drds
+                except
+                select drrmt.concept_name  
+                from {validation['source_schema']}.{validation['source_table']} drrmt 
+                where drrmt.vocabulary_name='Product Family Item Configuration'"""
 
-"""
-    
     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
     
     try:
@@ -139,62 +141,459 @@ def test_TS_RDCC_129_TC_RDCC_131_vocabulary_name_validation(db_connection: conne
     print(message)
 
     query =f"""
-        select vocabulary."VO_VO_NAME" as source_vocabulary_name 
-        from {validation['source_schema']}.t_omvo_voc vocabulary,
-        {validation['source_schema']}.{validation['source_table']} project
-        where project."PJ_PJ_SEQ" = vocabulary."VO_PJ_SEQ" and project."PJ_PJ_NAME" = 'RegCoR'
+        select drrmt.concept_name 
+                from {validation['source_schema']}.{validation['source_table']} drrmt 
+                where drrmt.vocabulary_name='Product Family Item Configuration'
+        except 
+        select drds.description  
+                from {validation['target_schema']}.{validation['target_table']} drds
+"""
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+    try:
+        if diff_count == 0:
+            message = f"✅ Source-to-Target check passed: All records from {validation['source_table']} exist in {validation['target_table']}."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Source-to-Target check failed: {diff_count} records in {validation['source_table']} missing from {validation['target_table']}."
+            logging.error(message)
+            test = False
+
+    except Exception as e:
+        message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
+        
+    assert test,message
+    print(message)
+
+    print(f"\nIdentify there is Null values for description   in {validation['target_table']} table.\n")
+    columns_to_check = ["description"]
+    result = check_columns_for_nulls(db_connection, validation['target_schema'], validation['target_table'], columns_to_check)
+
+    for col, null_count in result.items():
+        message = f"✅ Column '{col}' has no NULL values." if null_count == 0 else f"❌ Column '{col}' contains {null_count} NULL values."
+        print(message)
+        assert null_count == 0, message 
+
+def test_TS_RDCC_113_TC_RDCC_116_dosage_strength_validation(db_connection: connection | None,validation: dict[str, str]): 
+    print(f"RDCC-116-This test case ensures that the dosage_strength in the dim_product_family_item_configuration table is accurately retrieved as property_value using property_name as 'Dosage Strength', with the filter condition 'Product Family Item Configuration' as the vocabulary name from the dim_rdm_regcor_master_table..\n")
+    print(f"Test 1 : Identify dosage_strength  in the dim_regcor_product_family_item_configuration table that are missing in the source table (dim_rdm_regcor_master_table):\n")
+    query =f"""select drds.dosage_strength  
+                from {validation['target_schema']}.{validation['target_table']} drds
+                except
+                SELECT 
+                MAX(CASE WHEN property_name = 'Dosage Strength' THEN property_value END) AS dosage_strength
+                    FROM {validation['source_schema']}.{validation['source_table']}
+                    WHERE vocabulary_name = 'Product Family Item Configuration'
+                    group by concept_code 
+"""
+
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+    try:
+        if diff_count == 0:
+            message = f"✅ Target-to-Source check passed: All records from {validation['target_table']} exist in {validation['source_table']}."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Target-to-Source check failed: {diff_count} records in {validation['target_table']} missing from {validation['source_table']}."
+            logging.error(message)
+            test = False
+
+    except Exception as e:
+        message = f"❌ Error during target-to-source completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
+        
+    assert test,message
+    print(message)
+
+    query =f"""
+        SELECT 
+                MAX(CASE WHEN property_name = 'Dosage Strength' THEN property_value END) AS dosage_strength
+                    FROM {validation['source_schema']}.{validation['source_table']}
+                    WHERE vocabulary_name = 'Product Family Item Configuration'
+                    group by concept_code 
+        except 
+        select drds.dosage_strength  
+                from {validation['target_schema']}.{validation['target_table']} drds
+"""
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+    try:
+        if diff_count == 0:
+            message = f"✅ Source-to-Target check passed: All records from {validation['source_table']} exist in {validation['target_table']}."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Source-to-Target check failed: {diff_count} records in {validation['source_table']} missing from {validation['target_table']}."
+            logging.error(message)
+            test = False
+
+    except Exception as e:
+        message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
+        
+    assert test,message
+    print(message)
+
+def test_TS_RDCC_113_TC_RDCC_117_dosage_strength__units_validation(db_connection: connection | None,validation: dict[str, str]): 
+    print(f"RDCC-117-This test case ensures that the dosage_strength_units in the dim_product_family_item_configuration table is accurately retrieved as property_value using property_name as 'Dosage Strength units', with the filter condition 'Product Family Item Configuration' as the vocabulary name from the dim_rdm_regcor_master_table.\n")
+    print(f"Test 1 : Identify dosage_strength_units in the dim_regcor_product_family_item_configuration table that are missing in the source table (dim_rdm_regcor_master_table):\n")
+    query =f"""SELECT tgt.dosage_strength_units
+                FROM {validation['target_schema']}.{validation['target_table']} tgt
+                except
+                SELECT 
+                MAX(CASE WHEN property_name = 'Dosage Strength Units' THEN property_value END) AS dosage_strength_units
+    FROM {validation['source_schema']}.{validation['source_table']}
+    WHERE vocabulary_name = 'Product Family Item Configuration'
+    group by concept_code """
+
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+    try:
+        if diff_count == 0:
+            message = f"✅ Target-to-Source check passed: All records from {validation['target_table']} exist in {validation['source_table']}."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Target-to-Source check failed: {diff_count} records in {validation['target_table']} missing from {validation['source_table']}."
+            logging.error(message)
+            test = False
+
+    except Exception as e:
+        message = f"❌ Error during target-to-source completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
+        
+    assert test,message
+    print(message)
+
+    query =f"""
+        SELECT 
+                MAX(CASE WHEN property_name = 'Dosage Strength Units' THEN property_value END) AS dosage_strength_units
+                FROM {validation['source_schema']}.{validation['source_table']}
+                WHERE vocabulary_name = 'Product Family Item Configuration'
+                group by concept_code 
+        except 
+                SELECT tgt.dosage_strength_units
+                FROM {validation['target_schema']}.{validation['target_table']} tgt"""
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+    try:
+        if diff_count == 0:
+            message = f"✅ Source-to-Target check passed: All records from {validation['source_table']} exist in {validation['target_table']}."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Source-to-Target check failed: {diff_count} records in {validation['source_table']} missing from {validation['target_table']}."
+            logging.error(message)
+            test = False
+
+    except Exception as e:
+        message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
+        
+    assert test,message
+    print(message)
+
+def test_TS_RDCC_113_TC_RDCC_118_fill_volume_validation(db_connection: connection | None,validation: dict[str, str]): 
+    print(f"RDCC-118-This test case ensures that the fill_volume in the dim_product_family_item_configuration table is accurately retrieved as property_value using property_name as 'Dosage Volume', with the filter condition 'Product Family Item Configuration' as the vocabulary name from the dim_rdm_regcor_master_table.\n")
+    print(f"Test 1 : Identify fill_volume in the dim_regcor_product_family_item_configuration table that are missing in the source table (dim_rdm_regcor_master_table): \n")
+    query =f"""SELECT tgt.fill_volume
+            FROM {validation['target_schema']}.{validation['target_table']} tgt
+            except
+            SELECT 
+            MAX(CASE WHEN property_name = 'Dosage Volume' THEN property_value END) AS fill_volume
+                FROM {validation['source_schema']}.{validation['source_table']}
+                WHERE vocabulary_name = 'Product Family Item Configuration'
+                group by concept_code;"""
+
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+    try:
+        if diff_count == 0:
+            message = f"✅ Target-to-Source check passed: All records from {validation['target_table']} exist in {validation['source_table']}."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Target-to-Source check failed: {diff_count} records in {validation['target_table']} missing from {validation['source_table']}."
+            logging.error(message)
+            test = False
+
+    except Exception as e:
+        message = f"❌ Error during target-to-source completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
+        
+    assert test,message
+    print(message)
+
+    query =f"""
+        SELECT 
+            MAX(CASE WHEN property_name = 'Dosage Volume' THEN property_value END) AS fill_volume
+                FROM {validation['source_schema']}.{validation['source_table']}
+                WHERE vocabulary_name = 'Product Family Item Configuration'
+                group by concept_code
+        except 
+                SELECT tgt.fill_volume
+            FROM {validation['target_schema']}.{validation['target_table']} tgt"""
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+    try:
+        if diff_count == 0:
+            message = f"✅ Source-to-Target check passed: All records from {validation['source_table']} exist in {validation['target_table']}."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Source-to-Target check failed: {diff_count} records in {validation['source_table']} missing from {validation['target_table']}."
+            logging.error(message)
+            test = False
+
+    except Exception as e:
+        message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
+        
+    assert test,message
+    print(message)
+
+def test_TS_RDCC_113_TC_RDCC_119__validation(db_connection: connection | None,validation: dict[str, str]): 
+    print(f"RDCC-119-This test case ensures that the fill_volume_units in the dim_product_family_item_configuration table is accurately retrieved as property_value using property_name as 'Dosage Volume Units', with the filter condition 'Product Family Item Configuration' as the vocabulary name from the dim_rdm_regcor_master_table.\n")
+    print(f"Test 1 : Identify fill_volume_units in the dim_regcor_product_family_item_configuration table that are missing in the source table (dim_rdm_regcor_master_table): \n")
+    query =f"""SELECT tgt.fill_volume_units
+            FROM {validation['target_schema']}.{validation['target_table']} tgt
+            except
+            SELECT 
+            MAX(CASE WHEN property_name = 'Dosage Volume Units' THEN property_value END) AS fill_volume_units
+                FROM {validation['source_schema']}.{validation['source_table']}
+                WHERE vocabulary_name = 'Product Family Item Configuration'
+                group by concept_code;"""
+
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+    try:
+        if diff_count == 0:
+            message = f"✅ Target-to-Source check passed: All records from {validation['target_table']} exist in {validation['source_table']}."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Target-to-Source check failed: {diff_count} records in {validation['target_table']} missing from {validation['source_table']}."
+            logging.error(message)
+            test = False
+
+    except Exception as e:
+        message = f"❌ Error during target-to-source completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
+        
+    assert test,message
+    print(message)
+
+    query =f"""
+        SELECT 
+            MAX(CASE WHEN property_name = 'Dosage Volume Units' THEN property_value END) AS fill_volume_units
+                FROM {validation['source_schema']}.{validation['source_table']}
+                WHERE vocabulary_name = 'Product Family Item Configuration'
+                group by concept_code
+        except 
+                SELECT tgt.fill_volume_units
+            FROM {validation['target_schema']}.{validation['target_table']} tgt"""
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+    try:
+        if diff_count == 0:
+            message = f"✅ Source-to-Target check passed: All records from {validation['source_table']} exist in {validation['target_table']}."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Source-to-Target check failed: {diff_count} records in {validation['source_table']} missing from {validation['target_table']}."
+            logging.error(message)
+            test = False
+
+    except Exception as e:
+        message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
+        
+    assert test,message
+    print(message)
+
+def test_TS_RDCC_113_TC_RDCC_120_Product_family_validation(db_connection: connection | None,validation: dict[str, str]): 
+    print(f"RDCC-120-This test case ensures that the Product_family in the dim_product_family_item_configuration table is accurately retrieved as property_value using property_name as 'Product Family', with the filter condition 'Product Family Item Configuration' as the vocabulary name from the dim_rdm_regcor_master_table.\n")
+    print(f"Test 1 : Identify Product_family in the dim_regcor_product_family_item_configuration table that are missing in the source table (dim_rdm_regcor_master_table): \n")
+    query =f"""SELECT tgt.product_family
+            FROM {validation['target_schema']}.{validation['target_table']} tgt
+            except
+            SELECT 
+            MAX(CASE WHEN property_name = 'Product Family' THEN property_value END) AS product_family
+                FROM {validation['source_schema']}.{validation['source_table']}
+                WHERE vocabulary_name = 'Product Family Item Configuration'
+                group by concept_code;"""
+
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+    try:
+        if diff_count == 0:
+            message = f"✅ Target-to-Source check passed: All records from {validation['target_table']} exist in {validation['source_table']}."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Target-to-Source check failed: {diff_count} records in {validation['target_table']} missing from {validation['source_table']}."
+            logging.error(message)
+            test = False
+
+    except Exception as e:
+        message = f"❌ Error during target-to-source completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
+        
+    assert test,message
+    print(message)
+
+    query =f"""
+        SELECT 
+            MAX(CASE WHEN property_name = 'Product Family' THEN property_value END) AS product_family
+                FROM {validation['source_schema']}.{validation['source_table']}
+                WHERE vocabulary_name = 'Product Family Item Configuration'
+                group by concept_code
+        except 
+                SELECT tgt.product_family
+            FROM {validation['target_schema']}.{validation['target_table']} tgt"""
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+    try:
+        if diff_count == 0:
+            message = f"✅ Source-to-Target check passed: All records from {validation['source_table']} exist in {validation['target_table']}."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Source-to-Target check failed: {diff_count} records in {validation['source_table']} missing from {validation['target_table']}."
+            logging.error(message)
+            test = False
+
+    except Exception as e:
+        message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
+        
+    assert test,message
+    print(message)
+
+
+def test_TS_RDCC_113_TC_RDCC_121_dp_family_item_code_validation(db_connection: connection | None,validation: dict[str, str]): 
+    print(f"RDCC-121-This test case ensures that the dp_family_item_code in the dim_product_family_item_configuration table is accurately retrieved as relation_code_to using relation_name as 'Drug Product Family Item Code', with the filter condition 'Product Family Item Configuration' as the vocabulary name from the dim_rdm_regcor_master_table.\n")
+    print(f"Test 1 : Identify dp_family_item_code in the dim_regcor_product_family_item_configuration table that are missing in the source table (dim_rdm_regcor_master_table): \n")
+    query =f"""SELECT dp_family_item_code
+            FROM {validation['target_schema']}.{validation['target_table']} tgt
+            except
+            select distinct 
+            COALESCE(dp_rel.relation_code_to, 'No_Source_Value') AS dp_family_item_code
+            FROM ( 
+            SELECT 
+            concept_name
+            FROM 
+            {validation['source_schema']}.{validation['source_table']}
+            WHERE 
+            vocabulary_name = 'Product Family Item Configuration' 
+            GROUP BY 
+            concept_name 
+            ) b 
+            LEFT JOIN {validation['source_schema']}.{validation['source_table']} dp_rel 
+            ON dp_rel.concept_name = b.concept_name 
+            AND dp_rel.vocabulary_name = 'Product Family Item Configuration' 
+            AND dp_rel.relation_name = 'Drug Product Family Item Code'"""
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+    try:
+        if diff_count == 0:
+            message = f"✅ Target-to-Source check passed: All records from {validation['target_table']} exist in {validation['source_table']}."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Target-to-Source check failed: {diff_count} records in {validation['target_table']} missing from {validation['source_table']}."
+            logging.error(message)
+            test = False
+
+    except Exception as e:
+        message = f"❌ Error during target-to-source completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
+        
+    assert test,message
+    print(message)
+
+    query =f"""
+        select distinct 
+            COALESCE(dp_rel.relation_code_to, 'No_Source_Value') AS dp_family_item_code
+            FROM ( 
+            SELECT 
+            concept_name
+            FROM 
+            {validation['source_schema']}.{validation['source_table']}
+            WHERE 
+            vocabulary_name = 'Product Family Item Configuration' 
+            GROUP BY 
+            concept_name 
+            ) b 
+            LEFT JOIN {validation['source_schema']}.{validation['source_table']} dp_rel 
+            ON dp_rel.concept_name = b.concept_name 
+            AND dp_rel.vocabulary_name = 'Product Family Item Configuration' 
+            AND dp_rel.relation_name = 'Drug Product Family Item Code'
+        except 
+                SELECT dp_family_item_code
+            FROM {validation['target_schema']}.{validation['target_table']} tgt"""
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+    try:
+        if diff_count == 0:
+            message = f"✅ Source-to-Target check passed: All records from {validation['source_table']} exist in {validation['target_table']}."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Source-to-Target check failed: {diff_count} records in {validation['source_table']} missing from {validation['target_table']}."
+            logging.error(message)
+            test = False
+
+    except Exception as e:
+        message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
+        
+    assert test,message
+    print(message)
+
+def test_TS_RDCC_113_TC_RDCC_122_da_family_item_code_validation(db_connection: connection | None,validation: dict[str, str]): 
+    print(f"RDCC-122-This test case ensures that the da_family_item_code in the dim_product_family_item_configuration table is accurately retrieved as relation_code_to using relation_name as 'Device Assembly Family Item Code', with the filter condition 'Product Family Item Configuration' as the vocabulary name from the dim_rdm_regcor_master_table.\n")
+    print(f"Test 1 : Identify da_family_item_code in the dim_regcor_product_family_item_configuration table that are missing in the source table (dim_rdm_regcor_master_table): \n")
+    query =f"""SELECT tgt.da_family_item_code
+        FROM {validation['target_schema']}.{validation['target_table']} tgt
         except
-        select distinct dm.vocabulary_name from  
-        {validation['target_schema']}.{validation['target_table']} dm
+        select distinct 
+        COALESCE(da_rel.relation_code_to, 'No_Source_Value') AS da_family_item_code
+        FROM ( 
+        SELECT 
+        concept_name
+        FROM 
+        {validation['source_schema']}.{validation['source_table']}
+        WHERE 
+        vocabulary_name = 'Product Family Item Configuration' 
+        GROUP BY 
+        concept_name 
+        ) b 
+        LEFT JOIN {validation['source_schema']}.{validation['source_table']} da_rel 
+        ON da_rel.concept_name = b.concept_name 
+        AND da_rel.vocabulary_name = 'Product Family Item Configuration' 
+        AND da_rel.relation_name = 'Device Assembly Family Item Code'   
         """
     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
     
     try:
         if diff_count == 0:
-            message = f"✅ Source-to-Target check passed: All records from {validation['source_table']} exist in {validation['target_table']}."
-            logging.info(message)
-            test = True
-        else:
-            message = f"❌ Source-to-Target check failed: {diff_count} records in {validation['source_table']} missing from {validation['target_table']}."
-            logging.error(message)
-            test = False
-
-    except Exception as e:
-        message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
-        logging.exception(message)
-        test = False
-        
-    assert test,message
-    print(message)
-
-    print(f"\nIdentify there is Null values for vocabulary_name in {validation['target_table']} table.\n")
-    columns_to_check = ["vocabulary_name"]
-    result = check_columns_for_nulls(db_connection, validation['target_schema'], validation['target_table'], columns_to_check)
-
-    for col, null_count in result.items():
-        message = f"✅ Column '{col}' has no NULL values." if null_count == 0 else f"❌ Column '{col}' contains {null_count} NULL values."
-        print(message)
-        assert null_count == 0, message
-
-
-def test_TS_RDCC_129_TC_RDCC_132_concept_code_validation(db_connection: connection | None,validation: dict[str, str]): 
-    print(f"RDCC-132 - This Test case validates concept_code coulmn  data in dim master rdm  table is correctly fetched from t_omco_cncpt   by filtering PJ_PJ_SEQ with 'Project id'\n")
-    print(f"Test 1 : Identify concept_code in the dim_rdm_regcor_master_table table that are missing in the source table (t_omco_cncpt):\n")
-    query =f"""select distinct dm.concept_code from {validation['target_schema']}.{validation['target_table']} dm
-            except
-            select concept."CO_CO_CD" from {validation['source_schema']}.t_omco_cncpt concept,
-            {validation['source_schema']}.t_omvo_voc vocabulary,
-            {validation['source_schema']}.{validation['source_table']} project
-            where
-            project."PJ_PJ_SEQ" = vocabulary."VO_PJ_SEQ"
-            and vocabulary."VO_VO_SEQ" = concept."CO_VO_SEQ" 
-            and project."PJ_PJ_NAME" = 'RegCoR'
-"""
-
-    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
-    
-    try:
-        if diff_count == 0:
             message = f"✅ Target-to-Source check passed: All records from {validation['target_table']} exist in {validation['source_table']}."
             logging.info(message)
             test = True
@@ -212,18 +611,25 @@ def test_TS_RDCC_129_TC_RDCC_132_concept_code_validation(db_connection: connecti
     print(message)
 
     query =f"""
-        select concept."CO_CO_CD" as source_concept_name 
-        from {validation['source_schema']}.t_omco_cncpt concept,
-        {validation['source_schema']}.t_omvo_voc vocabulary,
-        {validation['source_schema']}.{validation['source_table']} project
-                where
-                project."PJ_PJ_SEQ" = vocabulary."VO_PJ_SEQ"
-                and vocabulary."VO_VO_SEQ" = concept."CO_VO_SEQ" 
-                and project."PJ_PJ_NAME" = 'RegCoR'
-                except
-                select distinct dm.concept_code from 
-                {validation['target_schema']}.{validation['target_table']} dm
-"""
+        select distinct 
+        COALESCE(da_rel.relation_code_to, 'No_Source_Value') AS da_family_item_code
+        FROM ( 
+        SELECT 
+        concept_name
+        FROM 
+        {validation['source_schema']}.{validation['source_table']}
+        WHERE 
+        vocabulary_name = 'Product Family Item Configuration' 
+        GROUP BY 
+        concept_name 
+        ) b 
+        LEFT JOIN {validation['source_schema']}.{validation['source_table']} da_rel 
+        ON da_rel.concept_name = b.concept_name 
+        AND da_rel.vocabulary_name = 'Product Family Item Configuration' 
+        AND da_rel.relation_name = 'Device Assembly Family Item Code' 
+        except
+        SELECT tgt.da_family_item_code
+        FROM {validation['target_schema']}.{validation['target_table']} tgt"""
     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
     
     try:
@@ -244,193 +650,29 @@ def test_TS_RDCC_129_TC_RDCC_132_concept_code_validation(db_connection: connecti
     assert test,message
     print(message)
 
-    print("\nIdentify there is Null values for concept_code  in dim_rdm_regcor_master_table table.\n")
-    columns_to_check = ["concept_code"]
-    result = check_columns_for_nulls(db_connection, validation['target_schema'], validation['target_table'], columns_to_check)
-
-    for col, null_count in result.items():
-        message = f"✅ Column '{col}' has no NULL values." if null_count == 0 else f"❌ Column '{col}' contains {null_count} NULL values."
-        print(message)
-        assert null_count == 0, message
-
-
-def test_TS_RDCC_129_TC_RDCC_133_concept_name_validation(db_connection: connection | None,validation: dict[str, str]): 
-    print(f"RDCC-134-This Test case validates concept_name coulmn  data in dim master rdm  table is correctly fetched from t_omco_cncpt   by filtering PJ_PJ_SEQ with 'Project id'\n")
-    print(f"Test 1 : Identify concept_name in the dim_rdm_regcor_master_table table that are missing in the source table (t_omco_cncpt):\n")
-    query =f"""select distinct dm.concept_name from {validation['target_schema']}.{validation['target_table']} dm
-            except
-            select concept."CO_NAME" from {validation['source_schema']}.t_omco_cncpt concept,
-            {validation['source_schema']}.t_omvo_voc vocabulary,
-            {validation['source_schema']}.{validation['source_table']} project
-            where
-            project."PJ_PJ_SEQ" = vocabulary."VO_PJ_SEQ"
-            and vocabulary."VO_VO_SEQ" = concept."CO_VO_SEQ" 
-            and project."PJ_PJ_NAME" = 'RegCoR'
-"""
-
-    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
-    
-    try:
-        if diff_count == 0:
-            message = f"✅ Target-to-Source check passed: All records from {validation['target_table']} exist in {validation['source_table']}."
-            logging.info(message)
-            test = True
-        else:
-            message = f"❌ Target-to-Source check failed: {diff_count} records in {validation['target_table']} missing from {validation['source_table']}."
-            logging.error(message)
-            test = False
-
-    except Exception as e:
-        message = f"❌ Error during target-to-source completeness validation: {str(e)}"
-        logging.exception(message)
-        test = False
-        
-    assert test,message
-    print(message)
-
-    query =f"""
-        select concept."CO_NAME" as source_concept_name 
-        from {validation['source_schema']}.t_omco_cncpt concept,
-        {validation['source_schema']}.t_omvo_voc vocabulary,
-        {validation['source_schema']}.{validation['source_table']} project
-                where
-                project."PJ_PJ_SEQ" = vocabulary."VO_PJ_SEQ"
-                and vocabulary."VO_VO_SEQ" = concept."CO_VO_SEQ" 
-                and project."PJ_PJ_NAME" = 'RegCoR'
+def test_TS_RDCC_113_TC_RDCC_122_fp_family_item_code_validation(db_connection: connection | None,validation: dict[str, str]): 
+    print(f"RDCC-123-This test case ensures that the fp_family_item_code in the dim_product_family_item_configuration table is accurately retrieved as relation_code_to using relation_name as 'Finished Packaging Family Item Code', with the filter condition 'Product Family Item Configuration' as the vocabulary name from the dim_rdm_regcor_master_table.\n")
+    print(f"Test 1 : Identify fp_family_item_code in the dim_regcor_product_family_item_configuration table that are missing in the source table (dim_rdm_regcor_master_table): \n")
+    query =f"""SELECT fp_family_item_code
+                FROM {validation['target_schema']}.{validation['target_table']} tgt
                 except
-                select distinct dm.concept_name from 
-                {validation['target_schema']}.{validation['target_table']} dm
-"""
-    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
-    
-    try:
-        if diff_count == 0:
-            message = f"✅ Source-to-Target check passed: All records from {validation['source_table']} exist in {validation['target_table']}."
-            logging.info(message)
-            test = True
-        else:
-            message = f"❌ Source-to-Target check failed: {diff_count} records in {validation['source_table']} missing from {validation['target_table']}."
-            logging.error(message)
-            test = False
-
-    except Exception as e:
-        message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
-        logging.exception(message)
-        test = False
-        
-    assert test,message
-    print(message)
-
-    print("\nIdentify there is Null values for concept_name  in dim_rdm_regcor_master_table table.\n")
-    columns_to_check = ["concept_name"]
-    result = check_columns_for_nulls(db_connection, validation['target_schema'], validation['target_table'], columns_to_check)
-
-    for col, null_count in result.items():
-        message = f"✅ Column '{col}' has no NULL values." if null_count == 0 else f"❌ Column '{col}' contains {null_count} NULL values."
-        print(message)
-        assert null_count == 0, message
-
-
-def test_TS_RDCC_129_TC_RDCC_134_property_name_validation(db_connection: connection | None,validation: dict[str, str]): 
-    print(f"RDCC-134-This Test case validates property_name coulmn  data in dim master rdm  table is correctly fetched from t_ompr_prop    by filtering PJ_PJ_SEQ with 'Project id'\n")
-    print(f"Test 1 : Identify property_name in the dim_rdm_regcor_master_table table that are missing in the source table (t_ompr_prop):\n")
-    query =f"""select distinct dm.property_name 
-                from  {validation['target_schema']}.{validation['target_table']} dm
-                except
-                select distinct property."PR_PR_NAME" as property_name 
-                from {validation['source_schema']}.{validation['source_table']} project 
-                join {validation['source_schema']}."t_omvo_voc" vocabulary on 
-                project."PJ_PJ_SEQ" = vocabulary."VO_PJ_SEQ" 
-                join {validation['source_schema']}."t_omco_cncpt" concept on 
-                vocabulary."VO_VO_SEQ" = concept."CO_VO_SEQ" 
-                join {validation['source_schema']}."t_omdo_dmn" domain on 
-                domain."DO_DO_SEQ" = concept."CO_DO_SEQ" 
-                left outer join {validation['source_schema']}."t_omcp_cncpt_prop" concept_property on 
-                concept."CO_CO_SEQ" = concept_property."CP_CO_SEQ" 
-                left outer join {validation['source_schema']}."t_ompr_prop" property on 
-                property."PR_PR_SEQ" = concept_property."CP_PR_SEQ"
-                where project."PJ_PJ_NAME" = 'RegCoR'
-"""
-
-    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
-    
-    try:
-        if diff_count == 0:
-            message = f"✅ Target-to-Source check passed: All records from {validation['target_table']} exist in {validation['source_table']}."
-            logging.info(message)
-            test = True
-        else:
-            message = f"❌ Target-to-Source check failed: {diff_count} records in {validation['target_table']} missing from {validation['source_table']}."
-            logging.error(message)
-            test = False
-
-    except Exception as e:
-        message = f"❌ Error during target-to-source completeness validation: {str(e)}"
-        logging.exception(message)
-        test = False
-        
-    assert test,message
-    print(message)
-
-    query =f"""
-            select distinct property."PR_PR_NAME" as source_property_name from 
-            {validation['source_schema']}.{validation['source_table']} project 
-            join {validation['source_schema']}."t_omvo_voc" vocabulary on 
-            project."PJ_PJ_SEQ" = vocabulary."VO_PJ_SEQ" 
-            join {validation['source_schema']}."t_omco_cncpt" concept on 
-            vocabulary."VO_VO_SEQ" = concept."CO_VO_SEQ" 
-            join {validation['source_schema']}."t_omdo_dmn" domain on 
-            domain."DO_DO_SEQ" = concept."CO_DO_SEQ" 
-            left outer join {validation['source_schema']}."t_omcp_cncpt_prop" concept_property on 
-            concept."CO_CO_SEQ" = concept_property."CP_CO_SEQ" 
-            left outer join {validation['source_schema']}."t_ompr_prop" property on 
-            property."PR_PR_SEQ" = concept_property."CP_PR_SEQ"
-            where project."PJ_PJ_NAME" = 'RegCoR'
-            except
-            select distinct dm.property_name from  
-            {validation['target_schema']}.{validation['target_table']} dm
-            """
-    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
-    
-    try:
-        if diff_count == 0:
-            message = f"✅ Source-to-Target check passed: All records from {validation['source_table']} exist in {validation['target_table']}."
-            logging.info(message)
-            test = True
-        else:
-            message = f"❌ Source-to-Target check failed: {diff_count} records in {validation['source_table']} missing from {validation['target_table']}."
-            logging.error(message)
-            test = False
-
-    except Exception as e:
-        message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
-        logging.exception(message)
-        test = False
-        
-    assert test,message
-    print(message)
-
-def test_TS_RDCC_129_TC_RDCC_135_property_value_validation(db_connection: connection | None,validation: dict[str, str]): 
-    print(f"RDCC-135-This Test case validates property_value coulmn  data in dim master rdm  table is correctly fetched from t_ompr_prop    by filtering PJ_PJ_SEQ with 'Project id'\n")
-    print(f"Test 1 : Identify property_value in the dim_rdm_regcor_master_table table that are missing in the source table (t_ompr_prop):\n")
-    query =f"""select distinct dm.property_value  
-                from  {validation['target_schema']}.{validation['target_table']} dm
-                except
-                select distinct concept_property."CP_VAL" as property_value 
-                from  {validation['source_schema']}.{validation['source_table']} project 
-                join {validation['source_schema']}."t_omvo_voc" vocabulary on 
-                project."PJ_PJ_SEQ" = vocabulary."VO_PJ_SEQ" 
-                join {validation['source_schema']}."t_omco_cncpt" concept on 
-                vocabulary."VO_VO_SEQ" = concept."CO_VO_SEQ" 
-                join {validation['source_schema']}."t_omdo_dmn" domain on 
-                domain."DO_DO_SEQ" = concept."CO_DO_SEQ" 
-                left outer join {validation['source_schema']}."t_omcp_cncpt_prop" concept_property on 
-                concept."CO_CO_SEQ" = concept_property."CP_CO_SEQ" 
-                left outer join {validation['source_schema']}."t_ompr_prop" property on 
-                property."PR_PR_SEQ" = concept_property."CP_PR_SEQ"
-                where project."PJ_PJ_NAME" = 'RegCoR'
+                select distinct 
+                COALESCE(fp_rel.relation_code_to, 'No_Source_Value') AS fp_family_item_code 
+                FROM ( 
+                SELECT 
+                concept_name
+                FROM 
+                {validation['source_schema']}.{validation['source_table']}
+                WHERE 
+                vocabulary_name = 'Product Family Item Configuration' 
+                GROUP BY 
+                concept_name 
+                ) b  
+                LEFT JOIN {validation['source_schema']}.{validation['source_table']} fp_rel 
+                ON fp_rel.concept_name = b.concept_name 
+                AND fp_rel.vocabulary_name = 'Product Family Item Configuration' 
+                AND fp_rel.relation_name = 'Finished Packaging Family Item Code'
                 """
-
     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
     
     try:
@@ -452,21 +694,25 @@ def test_TS_RDCC_129_TC_RDCC_135_property_value_validation(db_connection: connec
     print(message)
 
     query =f"""
-            select distinct concept_property."CP_VAL" as source_property_value 
-            from {validation['source_schema']}.{validation['source_table']} project 
-            join {validation['source_schema']}."t_omvo_voc" vocabulary on 
-            project."PJ_PJ_SEQ" = vocabulary."VO_PJ_SEQ" 
-            join {validation['source_schema']}."t_omco_cncpt" concept on 
-            vocabulary."VO_VO_SEQ" = concept."CO_VO_SEQ" 
-            join {validation['source_schema']}."t_omdo_dmn" domain on 
-            domain."DO_DO_SEQ" = concept."CO_DO_SEQ" 
-            left outer join {validation['source_schema']}."t_omcp_cncpt_prop" concept_property on 
-            concept."CO_CO_SEQ" = concept_property."CP_CO_SEQ" 
-            left outer join {validation['source_schema']}."t_ompr_prop" property on 
-            property."PR_PR_SEQ" = concept_property."CP_PR_SEQ"
-            where project."PJ_PJ_NAME" = 'RegCoR'
-            except
-            select distinct dm.property_value from  {validation['target_schema']}.{validation['target_table']} dm"""
+        select distinct 
+            COALESCE(fp_rel.relation_code_to, 'No_Source_Value') AS fp_family_item_code 
+            FROM ( 
+            SELECT 
+            concept_name
+            FROM 
+            {validation['source_schema']}.{validation['source_table']} 
+            WHERE 
+            vocabulary_name = 'Product Family Item Configuration' 
+            GROUP BY 
+            concept_name 
+            ) b  
+            LEFT JOIN {validation['source_schema']}.{validation['source_table']} fp_rel 
+            ON fp_rel.concept_name = b.concept_name 
+            AND fp_rel.vocabulary_name = 'Product Family Item Configuration' 
+            AND fp_rel.relation_name = 'Finished Packaging Family Item Code'
+            except 
+            SELECT tgt.fp_family_item_code
+            FROM {validation['target_schema']}.{validation['target_table']} tgt"""
     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
     
     try:
@@ -486,497 +732,3 @@ def test_TS_RDCC_129_TC_RDCC_135_property_value_validation(db_connection: connec
         
     assert test,message
     print(message)
-
-def test_TS_RDCC_129_TC_RDCC_136_Domain_validation(db_connection: connection | None,validation: dict[str, str]): 
-    print(f"RDCC-136-This Test case validates domain coulmn  data in dim master rdm  table is correctly fetched from t_omdo_dmn by filtering PJ_PJ_SEQ with 'Project id'.\n")
-    print(f"Test 1 : Identify domain in the dim_rdm_regcor_master_table table that are missing in the source table (t_omdo_dmn):\n")
-    query =f"""select distinct dm."domain" from  {validation['target_schema']}.{validation['target_table']} dm
-            except
-            select distinct domain."DO_DO_NAME" as domain_name 
-            from {validation['source_schema']}.{validation['source_table']} project 
-            join {validation['source_schema']}."t_omvo_voc" vocabulary on 
-            project."PJ_PJ_SEQ" = vocabulary."VO_PJ_SEQ" 
-            join {validation['source_schema']}."t_omco_cncpt" concept on 
-            vocabulary."VO_VO_SEQ" = concept."CO_VO_SEQ" 
-            join {validation['source_schema']}."t_omdo_dmn" domain on 
-            domain."DO_DO_SEQ" = concept."CO_DO_SEQ" 
-            left outer join {validation['source_schema']}."t_omcp_cncpt_prop" concept_property on 
-            concept."CO_CO_SEQ" = concept_property."CP_CO_SEQ" 
-            left outer join {validation['source_schema']}."t_ompr_prop" property on 
-            property."PR_PR_SEQ" = concept_property."CP_PR_SEQ"
-            where project."PJ_PJ_NAME" = 'RegCoR'
- """
-
-    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
-    
-    try:
-        if diff_count == 0:
-            message = f"✅ Target-to-Source check passed: All records from {validation['target_table']} exist in {validation['source_table']}."
-            logging.info(message)
-            test = True
-        else:
-            message = f"❌ Target-to-Source check failed: {diff_count} records in {validation['target_table']} missing from {validation['source_table']}."
-            logging.error(message)
-            test = False
-
-    except Exception as e:
-        message = f"❌ Error during target-to-source completeness validation: {str(e)}"
-        logging.exception(message)
-        test = False
-        
-    assert test,message
-    print(message)
-
-    query =f"""
-        select distinct domain."DO_DO_NAME" as source_domain_name 
-        from {validation['source_schema']}.{validation['source_table']} project 
-        join {validation['source_schema']}."t_omvo_voc" vocabulary on 
-        project."PJ_PJ_SEQ" = vocabulary."VO_PJ_SEQ" 
-        join {validation['source_schema']}."t_omco_cncpt" concept on 
-        vocabulary."VO_VO_SEQ" = concept."CO_VO_SEQ" 
-        join {validation['source_schema']}."t_omdo_dmn" domain on 
-        domain."DO_DO_SEQ" = concept."CO_DO_SEQ" 
-        left outer join {validation['source_schema']}."t_omcp_cncpt_prop" concept_property on 
-        concept."CO_CO_SEQ" = concept_property."CP_CO_SEQ" 
-        left outer join {validation['source_schema']}."t_ompr_prop" property on 
-        property."PR_PR_SEQ" = concept_property."CP_PR_SEQ"
-        where project."PJ_PJ_NAME" = 'RegCoR'
-        except
-        select distinct dm."domain" from  
-        {validation['target_schema']}.{validation['target_table']} dm"""
-    
-    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
-    
-    try:
-        if diff_count == 0:
-            message = f"✅ Source-to-Target check passed: All records from {validation['source_table']} exist in {validation['target_table']}."
-            logging.info(message)
-            test = True
-        else:
-            message = f"❌ Source-to-Target check failed: {diff_count} records in {validation['source_table']} missing from {validation['target_table']}."
-            logging.error(message)
-            test = False
-
-    except Exception as e:
-        message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
-        logging.exception(message)
-        test = False
-        
-    assert test,message
-    print(message)
-
-
-def test_TS_RDCC_129_TC_RDCC_137_Domain_validation(db_connection: connection | None,validation: dict[str, str]): 
-    print(f"RDCC-137-This Test case validates relation_name coulmn  data in dim master rdm  table is correctly fetched from t_omre_rel by filtering PJ_PJ_SEQ with 'Project id'n")
-    print(f"Test 1 : Identify relation_name  in the dim_rdm_regcor_master_table table that are missing in the source table (t_omdo_dmn):\n")
-    query =f"""select distinct dm.relation_name from  
-        {validation['target_schema']}.{validation['target_table']} dm
-        except
-        select distinct relation."RE_RE_NAME" as relation_name 
-        from {validation['source_schema']}.{validation['source_table']} project 
-        join {validation['source_schema']}."t_omvo_voc" vocabulary on 
-        project."PJ_PJ_SEQ" = vocabulary."VO_PJ_SEQ" 
-        join {validation['source_schema']}."t_omco_cncpt" concept on 
-        vocabulary."VO_VO_SEQ" = concept."CO_VO_SEQ" 
-        join {validation['source_schema']}."t_omdo_dmn" domain on 
-        domain."DO_DO_SEQ" = concept."CO_DO_SEQ" 
-        left outer join {validation['source_schema']}."t_omcp_cncpt_prop" concept_property on 
-        concept."CO_CO_SEQ" = concept_property."CP_CO_SEQ" 
-        left outer join {validation['source_schema']}."t_ompr_prop" property on 
-        property."PR_PR_SEQ" = concept_property."CP_PR_SEQ"
-        left outer join {validation['source_schema']}."t_omcr_cncpt_rel" cocor on 
-        cocor."CR_FROM_CO_SEQ" = concept."CO_CO_SEQ" 
-        left outer join {validation['source_schema']}."t_omre_rel" relation on 
-        relation."RE_RE_SEQ" = cocor."CR_RE_SEQ" 
-        where project."PJ_PJ_NAME" = 'RegCoR'
- """
-
-    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
-    
-    try:
-        if diff_count == 0:
-            message = f"✅ Target-to-Source check passed: All records from {validation['target_table']} exist in {validation['source_table']}."
-            logging.info(message)
-            test = True
-        else:
-            message = f"❌ Target-to-Source check failed: {diff_count} records in {validation['target_table']} missing from {validation['source_table']}."
-            logging.error(message)
-            test = False
-
-    except Exception as e:
-        message = f"❌ Error during target-to-source completeness validation: {str(e)}"
-        logging.exception(message)
-        test = False
-        
-    assert test,message
-    print(message)
-
-    query =f"""
-        select distinct relation."RE_RE_NAME" as source_relation_name 
-        from {validation['source_schema']}.{validation['source_table']} project 
-        join {validation['source_schema']}."t_omvo_voc" vocabulary on 
-        project."PJ_PJ_SEQ" = vocabulary."VO_PJ_SEQ" 
-        join {validation['source_schema']}."t_omco_cncpt" concept on 
-        vocabulary."VO_VO_SEQ" = concept."CO_VO_SEQ" 
-        join {validation['source_schema']}."t_omdo_dmn" domain on 
-        domain."DO_DO_SEQ" = concept."CO_DO_SEQ" 
-        left outer join {validation['source_schema']}."t_omcp_cncpt_prop" concept_property on 
-        concept."CO_CO_SEQ" = concept_property."CP_CO_SEQ" 
-        left outer join {validation['source_schema']}."t_ompr_prop" property on 
-        property."PR_PR_SEQ" = concept_property."CP_PR_SEQ"
-        left outer join {validation['source_schema']}."t_omcr_cncpt_rel" cocor on 
-        cocor."CR_FROM_CO_SEQ" = concept."CO_CO_SEQ" 
-        left outer join {validation['source_schema']}."t_omre_rel" relation on 
-        relation."RE_RE_SEQ" = cocor."CR_RE_SEQ" 
-        where project."PJ_PJ_NAME" = 'RegCoR'
-        except
-        select distinct dm.relation_name from  
-        {validation['target_schema']}.{validation['target_table']} dm
-"""
-    
-    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
-    
-    try:
-        if diff_count == 0:
-            message = f"✅ Source-to-Target check passed: All records from {validation['source_table']} exist in {validation['target_table']}."
-            logging.info(message)
-            test = True
-        else:
-            message = f"❌ Source-to-Target check failed: {diff_count} records in {validation['source_table']} missing from {validation['target_table']}."
-            logging.error(message)
-            test = False
-
-    except Exception as e:
-        message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
-        logging.exception(message)
-        test = False
-        
-    assert test,message
-    print(message)
-
-
-def test_TS_RDCC_129_TC_RDCC_137_Domain_validation(db_connection: connection | None,validation: dict[str, str]): 
-    print(f"RDCC-137-This Test case validates relation_name coulmn  data in dim master rdm  table is correctly fetched from t_omre_rel by filtering PJ_PJ_SEQ with 'Project id'n")
-    print(f"Test 1 : Identify relation_name  in the dim_rdm_regcor_master_table table that are missing in the source table (t_omdo_dmn):\n")
-    query =f"""select distinct dm.relation_name from  
-        {validation['target_schema']}.{validation['target_table']} dm
-        except
-        select distinct relation."RE_RE_NAME" as relation_name 
-        from {validation['source_schema']}.{validation['source_table']} project 
-        join {validation['source_schema']}."t_omvo_voc" vocabulary on 
-        project."PJ_PJ_SEQ" = vocabulary."VO_PJ_SEQ" 
-        join {validation['source_schema']}."t_omco_cncpt" concept on 
-        vocabulary."VO_VO_SEQ" = concept."CO_VO_SEQ" 
-        join {validation['source_schema']}."t_omdo_dmn" domain on 
-        domain."DO_DO_SEQ" = concept."CO_DO_SEQ" 
-        left outer join {validation['source_schema']}."t_omcp_cncpt_prop" concept_property on 
-        concept."CO_CO_SEQ" = concept_property."CP_CO_SEQ" 
-        left outer join {validation['source_schema']}."t_ompr_prop" property on 
-        property."PR_PR_SEQ" = concept_property."CP_PR_SEQ"
-        left outer join {validation['source_schema']}."t_omcr_cncpt_rel" cocor on 
-        cocor."CR_FROM_CO_SEQ" = concept."CO_CO_SEQ" 
-        left outer join {validation['source_schema']}."t_omre_rel" relation on 
-        relation."RE_RE_SEQ" = cocor."CR_RE_SEQ" 
-        where project."PJ_PJ_NAME" = 'RegCoR'
- """
-
-    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
-    
-    try:
-        if diff_count == 0:
-            message = f"✅ Target-to-Source check passed: All records from {validation['target_table']} exist in {validation['source_table']}."
-            logging.info(message)
-            test = True
-        else:
-            message = f"❌ Target-to-Source check failed: {diff_count} records in {validation['target_table']} missing from {validation['source_table']}."
-            logging.error(message)
-            test = False
-
-    except Exception as e:
-        message = f"❌ Error during target-to-source completeness validation: {str(e)}"
-        logging.exception(message)
-        test = False
-        
-    assert test,message
-    print(message)
-
-    query =f"""
-        select distinct relation."RE_RE_NAME" as source_relation_name 
-        from {validation['source_schema']}.{validation['source_table']} project 
-        join {validation['source_schema']}."t_omvo_voc" vocabulary on 
-        project."PJ_PJ_SEQ" = vocabulary."VO_PJ_SEQ" 
-        join {validation['source_schema']}."t_omco_cncpt" concept on 
-        vocabulary."VO_VO_SEQ" = concept."CO_VO_SEQ" 
-        join {validation['source_schema']}."t_omdo_dmn" domain on 
-        domain."DO_DO_SEQ" = concept."CO_DO_SEQ" 
-        left outer join {validation['source_schema']}."t_omcp_cncpt_prop" concept_property on 
-        concept."CO_CO_SEQ" = concept_property."CP_CO_SEQ" 
-        left outer join {validation['source_schema']}."t_ompr_prop" property on 
-        property."PR_PR_SEQ" = concept_property."CP_PR_SEQ"
-        left outer join {validation['source_schema']}."t_omcr_cncpt_rel" cocor on 
-        cocor."CR_FROM_CO_SEQ" = concept."CO_CO_SEQ" 
-        left outer join {validation['source_schema']}."t_omre_rel" relation on 
-        relation."RE_RE_SEQ" = cocor."CR_RE_SEQ" 
-        where project."PJ_PJ_NAME" = 'RegCoR'
-        except
-        select distinct dm.relation_name from  
-        {validation['target_schema']}.{validation['target_table']} dm
-"""
-    
-    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
-    
-    try:
-        if diff_count == 0:
-            message = f"✅ Source-to-Target check passed: All records from {validation['source_table']} exist in {validation['target_table']}."
-            logging.info(message)
-            test = True
-        else:
-            message = f"❌ Source-to-Target check failed: {diff_count} records in {validation['source_table']} missing from {validation['target_table']}."
-            logging.error(message)
-            test = False
-
-    except Exception as e:
-        message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
-        logging.exception(message)
-        test = False
-        
-    assert test,message
-    print(message)
-
-def test_TS_RDCC_129_TC_RDCC_138_relation_code_to_validation(db_connection: connection | None,validation: dict[str, str]): 
-    print(f"RDCC-138-This Test case validates relation_code_to coulmn  data in dim master rdm  table is correctly fetched from t_omre_rel by filtering PJ_PJ_SEQ with 'Project id'n")
-    print(f"Test 1 : Identify relation_code_to  in the dim_rdm_regcor_master_table table that are missing in the source table (t_omdo_dmn):\n")
-    query =f"""select distinct dm.relation_code_to from  
-                {validation['target_schema']}.{validation['target_table']} dm
-                except
-                select distinct concept_to."CO_CO_CD" as relation_code_to 
-                from {validation['source_schema']}.{validation['source_table']} project 
-                join {validation['source_schema']}."t_omvo_voc" vocabulary on 
-                project."PJ_PJ_SEQ" = vocabulary."VO_PJ_SEQ" 
-                join {validation['source_schema']}."t_omco_cncpt" concept on 
-                vocabulary."VO_VO_SEQ" = concept."CO_VO_SEQ" 
-                join {validation['source_schema']}."t_omdo_dmn" domain on 
-                domain."DO_DO_SEQ" = concept."CO_DO_SEQ" 
-                left outer join {validation['source_schema']}."t_omcp_cncpt_prop" concept_property on 
-                concept."CO_CO_SEQ" = concept_property."CP_CO_SEQ" 
-                left outer join {validation['source_schema']}."t_ompr_prop" property on 
-                property."PR_PR_SEQ" = concept_property."CP_PR_SEQ"
-                left outer join {validation['source_schema']}."t_omcr_cncpt_rel" cocor on 
-                cocor."CR_FROM_CO_SEQ" = concept."CO_CO_SEQ" 
-                left outer join {validation['source_schema']}."t_omco_cncpt" concept_to on 
-                cocor."CR_TO_CO_SEQ" = concept_to."CO_CO_SEQ" 
-                left outer join {validation['source_schema']}."t_omre_rel" relation on 
-                relation."RE_RE_SEQ" = cocor."CR_RE_SEQ" 
-                where project."PJ_PJ_NAME" = 'RegCoR'
- """
-
-    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
-    
-    try:
-        if diff_count == 0:
-            message = f"✅ Target-to-Source check passed: All records from {validation['target_table']} exist in {validation['source_table']}."
-            logging.info(message)
-            test = True
-        else:
-            message = f"❌ Target-to-Source check failed: {diff_count} records in {validation['target_table']} missing from {validation['source_table']}."
-            logging.error(message)
-            test = False
-
-    except Exception as e:
-        message = f"❌ Error during target-to-source completeness validation: {str(e)}"
-        logging.exception(message)
-        test = False
-        
-    assert test,message
-    print(message)
-
-    query =f"""
-       select distinct concept_to."CO_CO_CD" as source_relation_code_to 
-            from {validation['source_schema']}.{validation['source_table']} project 
-            join {validation['source_schema']}."t_omvo_voc" vocabulary on 
-            project."PJ_PJ_SEQ" = vocabulary."VO_PJ_SEQ" 
-            join {validation['source_schema']}."t_omco_cncpt" concept on 
-            vocabulary."VO_VO_SEQ" = concept."CO_VO_SEQ" 
-            join {validation['source_schema']}."t_omdo_dmn" domain on 
-            domain."DO_DO_SEQ" = concept."CO_DO_SEQ" 
-            left outer join {validation['source_schema']}."t_omcp_cncpt_prop" concept_property on 
-            concept."CO_CO_SEQ" = concept_property."CP_CO_SEQ" 
-            left outer join {validation['source_schema']}."t_ompr_prop" property on 
-            property."PR_PR_SEQ" = concept_property."CP_PR_SEQ"
-            left outer join {validation['source_schema']}."t_omcr_cncpt_rel" cocor on 
-            cocor."CR_FROM_CO_SEQ" = concept."CO_CO_SEQ" 
-            left outer join {validation['source_schema']}."t_omco_cncpt" concept_to on 
-            cocor."CR_TO_CO_SEQ" = concept_to."CO_CO_SEQ" 
-            left outer join {validation['source_schema']}."t_omre_rel" relation on 
-            relation."RE_RE_SEQ" = cocor."CR_RE_SEQ" 
-            where project."PJ_PJ_NAME" = 'RegCoR'
-            except
-            select distinct dm.relation_code_to from  
-            {validation['target_schema']}.{validation['target_table']} dm"""
-    
-    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
-    
-    try:
-        if diff_count == 0:
-            message = f"✅ Source-to-Target check passed: All records from {validation['source_table']} exist in {validation['target_table']}."
-            logging.info(message)
-            test = True
-        else:
-            message = f"❌ Source-to-Target check failed: {diff_count} records in {validation['source_table']} missing from {validation['target_table']}."
-            logging.error(message)
-            test = False
-
-    except Exception as e:
-        message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
-        logging.exception(message)
-        test = False
-        
-    assert test,message
-    print(message)
-
-
-def test_TS_RDCC_129_TC_RDCC_139_relation_value_to_validation(db_connection: connection | None,validation: dict[str, str]): 
-    print(f"RDCC-139-This test case ensures that the relation_value_to column data in the Master Table RDM DIM is accurately retrieved from t_omco_cncpt by filtering PJ_PJ_SEQ with the 'Project ID'.'n")
-    print(f"Test 1 : Identify relation_value_to in the dim_rdm_regcor_master_table table that are missing in the source table (t_omco_cncpt):\n")
-    query =f"""select distinct dm.relation_value_to from  
-            {validation['target_schema']}.{validation['target_table']} dm
-            except
-            select distinct concept_to."CO_NAME" as relation_value_to 
-            from {validation['source_schema']}.{validation['source_table']} project 
-            join {validation['source_schema']}."t_omvo_voc" vocabulary on 
-            project."PJ_PJ_SEQ" = vocabulary."VO_PJ_SEQ" 
-            join {validation['source_schema']}."t_omco_cncpt" concept on 
-            vocabulary."VO_VO_SEQ" = concept."CO_VO_SEQ" 
-            join {validation['source_schema']}."t_omdo_dmn" domain on 
-            domain."DO_DO_SEQ" = concept."CO_DO_SEQ" 
-            left outer join {validation['source_schema']}."t_omcp_cncpt_prop" concept_property on 
-            concept."CO_CO_SEQ" = concept_property."CP_CO_SEQ" 
-            left outer join {validation['source_schema']}."t_ompr_prop" property on 
-            property."PR_PR_SEQ" = concept_property."CP_PR_SEQ"
-            left outer join {validation['source_schema']}."t_omcr_cncpt_rel" cocor on 
-            cocor."CR_FROM_CO_SEQ" = concept."CO_CO_SEQ" 
-            left outer join {validation['source_schema']}."t_omco_cncpt" concept_to on 
-            cocor."CR_TO_CO_SEQ" = concept_to."CO_CO_SEQ" 
-            left outer join {validation['source_schema']}."t_omre_rel" relation on 
-            relation."RE_RE_SEQ" = cocor."CR_RE_SEQ" 
-            where project."PJ_PJ_NAME" = 'RegCoR'"""
-
-    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
-    
-    try:
-        if diff_count == 0:
-            message = f"✅ Target-to-Source check passed: All records from {validation['target_table']} exist in {validation['source_table']}."
-            logging.info(message)
-            test = True
-        else:
-            message = f"❌ Target-to-Source check failed: {diff_count} records in {validation['target_table']} missing from {validation['source_table']}."
-            logging.error(message)
-            test = False
-
-    except Exception as e:
-        message = f"❌ Error during target-to-source completeness validation: {str(e)}"
-        logging.exception(message)
-        test = False
-        
-    assert test,message
-    print(message)
-
-    query =f"""
-       select distinct concept_to."CO_NAME" as source_relation_value_to
-            from {validation['source_schema']}.{validation['source_table']} project 
-            join {validation['source_schema']}."t_omvo_voc" vocabulary on 
-            project."PJ_PJ_SEQ" = vocabulary."VO_PJ_SEQ" 
-            join {validation['source_schema']}."t_omco_cncpt" concept on 
-            vocabulary."VO_VO_SEQ" = concept."CO_VO_SEQ" 
-            join {validation['source_schema']}."t_omdo_dmn" domain on 
-            domain."DO_DO_SEQ" = concept."CO_DO_SEQ" 
-            left outer join {validation['source_schema']}."t_omcp_cncpt_prop" concept_property on 
-            concept."CO_CO_SEQ" = concept_property."CP_CO_SEQ" 
-            left outer join {validation['source_schema']}."t_ompr_prop" property on 
-            property."PR_PR_SEQ" = concept_property."CP_PR_SEQ"
-            left outer join {validation['source_schema']}."t_omcr_cncpt_rel" cocor on 
-            cocor."CR_FROM_CO_SEQ" = concept."CO_CO_SEQ" 
-            left outer join {validation['source_schema']}."t_omco_cncpt" concept_to on 
-            cocor."CR_TO_CO_SEQ" = concept_to."CO_CO_SEQ" 
-            left outer join {validation['source_schema']}."t_omre_rel" relation on 
-            relation."RE_RE_SEQ" = cocor."CR_RE_SEQ" 
-            where project."PJ_PJ_NAME" = 'RegCoR'
-            except
-            select distinct dm.relation_value_to from  
-            {validation['target_schema']}.{validation['target_table']} dm"""
-    
-    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
-    
-    try:
-        if diff_count == 0:
-            message = f"✅ Source-to-Target check passed: All records from {validation['source_table']} exist in {validation['target_table']}."
-            logging.info(message)
-            test = True
-        else:
-            message = f"❌ Source-to-Target check failed: {diff_count} records in {validation['source_table']} missing from {validation['target_table']}."
-            logging.error(message)
-            test = False
-
-    except Exception as e:
-        message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
-        logging.exception(message)
-        test = False
-        
-    assert test,message
-    print(message)
-
-# def test_TS_RDCC_129_TC_RDCC_140_Master_MDM_Tab_PK_Check(db_connection: connection | None,validation: dict[str, str]):
-#     print("\n_This test case validates the duplicates and null checks of the primary key columns in the DIM RDM Master Table.\n")
-#     # -- Check for duplicates in primary keys 
-#     print(f"1.Check for Duplicates\n")
-#     primary_keys = ['concept_code ,property_name,relation_name ,relation_value_to']
-#     result = check_primary_key_duplicates(
-#     connection=db_connection,
-#     schema_name=validation['target_schema'],
-#     table_name=validation["target_table"],
-#     primary_keys=primary_keys)
-#     assert result, f"❌ Duplicate values found in {validation["target_table"]} table for keys {primary_keys}!"
-#     print(f"✅ Duplicate values Not found in {validation["target_table"]} table for keys {primary_keys}")
-
-#     print("\nIdentify there is no Null values for Primary Keys in dim table.\n")
-#     columns_to_check = ["concept_code","property_name","relation_name" ,"relation_value_to"]
-#     schema = {validation['target_schema']}
-#     table = {validation['target_table']}
-#     status, count, msg = check_all_columns_null_combination(db_connection, schema, table, columns_to_check)
-#     print(msg)
-#     assert status, msg
-
-def test_TS_RDCC_129_TC_RDCC_140_Master_MDM_Tab_PK_Check(db_connection: connection | None, validation: dict[str, str]):
-    print("\nThis test case validates the duplicates and null checks of the primary key columns in the DIM RDM Master Table.\n")
-    
-    # Check for duplicates in primary keys
-    print(f"1. Check for Duplicates\n")
-    primary_keys = ['concept_code', 'property_name', 'relation_name', 'relation_value_to']
-    result = check_primary_key_duplicates(
-        connection=db_connection,
-        schema_name=validation['target_schema'],
-        table_name=validation["target_table"],
-        primary_keys=primary_keys
-    )
-    assert result, f"❌ Duplicate values found in {validation['target_table']} table for keys {primary_keys}!"
-    print(f"✅ Duplicate values Not found in {validation['target_table']} table for keys {primary_keys}")
-    # Identify there are no NULL values for Primary Keys in dim table
-    print("\nIdentify there are no NULL values for Primary Keys in dim table.\n")
-    columns_to_check = ["concept_code", "property_name", "relation_name", "relation_value_to"]
-    query = f"""
-    SELECT COUNT(*)
-    FROM "{validation['target_schema']}"."{validation['target_table']}"
-    WHERE concept_code IS NULL
-    AND property_name IS NULL
-    AND relation_name IS NULL
-    AND relation_value_to IS NULL
-    """
-    cursor = db_connection.cursor()
-    cursor.execute(query)
-    count = cursor.fetchone()[0]
-    assert count == 0, f"❌ Error checking NULL combinations: {count} NULL values found!"
-    print(f"✅ No NULL values found in {validation['target_table']} table for keys {columns_to_check}")
-
-
-
-
