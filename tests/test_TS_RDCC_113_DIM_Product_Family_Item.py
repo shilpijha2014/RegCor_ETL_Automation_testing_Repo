@@ -732,3 +732,104 @@ def test_TS_RDCC_113_TC_RDCC_122_fp_family_item_code_validation(db_connection: c
         
     assert test,message
     print(message)
+
+def test_TS_RDCC_113_TC_RDCC_124_PK_Check(db_connection: connection | None,validation: dict[str, str]):
+    print("\nThis test case validates the duplicates and null checks of the primary key columns in the DIM Product Family Item Configuration table.\n")
+    # -- Check for duplicates in primary keys 
+    print(f"1.Check for Duplicates\n")
+    primary_keys = ['product_configuration_name','da_family_item_code','dp_family_item_code','fp_family_item_code']
+    result = check_primary_key_duplicates(
+    connection=db_connection,
+    schema_name=validation['target_schema'],
+    table_name=validation["target_table"],
+    primary_keys=primary_keys)
+    assert result, f"❌ Duplicate values found in {validation["target_table"]} table for keys {primary_keys}!"
+    print(f"✅ Duplicate values Not found in {validation["target_table"]} table for keys {primary_keys}")
+
+    print("\nIdentify there is no Null values for ds_material_number in dim table.\n")
+    columns_to_check = primary_keys
+    result = check_columns_for_nulls(db_connection, validation['target_schema'], validation['target_table'], columns_to_check)
+
+    for col, null_count in result.items():
+        message = f"✅ Column '{col}' has no NULL values." if null_count == 0 else f"❌ Column '{col}' contains {null_count} NULL values."
+        print(message)
+        assert null_count == 0, message
+
+def test_TS_RDCC_113_TC_RDCC_125_No_Source_Value_Transformation_Check(db_connection: connection | None,validation: dict[str, str]):
+    print("\nThis test case ensures that the columns in the dim_product_family_item_configuration table are transformed to no_source_values when null values are present in the source table.\n")
+    query =f"""
+        WITH source_data AS (
+    SELECT 
+        b.concept_code AS product_configuration_name, 
+        b.concept_name AS description, 
+        COALESCE(dp_rel.relation_code_to, 'No_Source_Value') AS dp_family_item_code, 
+        COALESCE(da_rel.relation_code_to, 'No_Source_Value') AS da_family_item_code, 
+        COALESCE(fp_rel.relation_code_to, 'No_Source_Value') AS fp_family_item_code 
+    FROM (
+        SELECT 
+            concept_name, 
+            concept_code 
+        FROM 
+            {validation['source_schema']}.{validation['source_table']}
+        WHERE 
+            vocabulary_name = 'Product Family Item Configuration'
+    ) b 
+    LEFT JOIN {validation['source_schema']}.{validation['source_table']} dp_rel 
+        ON dp_rel.concept_name = b.concept_name 
+        AND dp_rel.relation_name = 'Drug Product Family Item Code'
+    LEFT JOIN {validation['source_schema']}.{validation['source_table']} da_rel 
+        ON da_rel.concept_name = b.concept_name 
+        AND da_rel.relation_name = 'Device Assembly Family Item Code'
+    LEFT JOIN {validation['source_schema']}.{validation['source_table']} fp_rel 
+        ON fp_rel.concept_name = b.concept_name 
+        AND fp_rel.relation_name = 'Finished Packaging Family Item Code'
+),
+target_data AS (
+    SELECT 
+        product_configuration_name, 
+        description, 
+        dp_family_item_code, 
+        da_family_item_code, 
+        fp_family_item_code 
+    FROM 
+        {validation['target_schema']}.{validation['target_table']}-- Replace with the target table name
+)
+-- Compare source and target
+SELECT 
+    s.dp_family_item_code, 
+    s.da_family_item_code,
+    s.fp_family_item_code,
+    t. dp_family_item_code,
+    t.dp_family_item_code,
+    t.fp_family_item_code
+FROM 
+    source_data s 
+FULL OUTER JOIN 
+    target_data t 
+ON 
+    s.dp_family_item_code=t.dp_family_item_code
+    and s.da_family_item_code = t.da_family_item_code
+    and s.fp_family_item_code = t.fp_family_item_code
+WHERE 
+    s.dp_family_item_code != t.dp_family_item_code 
+    OR s.da_family_item_code != t.da_family_item_code 
+    OR s.fp_family_item_code != t.fp_family_item_code"""
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+    try:
+        if diff_count == 0:
+            message = f"✅ No_Source_Value_Transformation check passed: All records from {validation['source_table']} exist in {validation['target_table']}."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ No_Source_Value_Transformation failed: {diff_count} records in {validation['source_table']} missing from {validation['target_table']}."
+            logging.error(message)
+            test = False
+
+    except Exception as e:
+        message = f"❌ Error during No_Source_Value_Transformation completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
+        
+    assert test,message
+    print(message)
