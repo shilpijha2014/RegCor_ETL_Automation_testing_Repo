@@ -385,11 +385,11 @@ WHERE
     
     try:
         if diff_count == 0:
-            message = f"✅ Source-to-Target check passed: All records from {validation['source_table']} exist in {validation['target_table']}."
+            message = f"✅ Source-to-Target check passed: All records from manufacturer exist in {validation['target_table']}."
             logging.info(message)
             test = True
         else:
-            message = f"❌ Source-to-Target check failed: {diff_count} records in {validation['source_table']} missing from {validation['target_table']}."
+            message = f"❌ Source-to-Target check failed: {diff_count} records in manufacturer missing from {validation['target_table']}."
             logging.error(message)
             test = False
 
@@ -400,6 +400,362 @@ WHERE
         
     assert test,message
     print(message)
+
+def test_TS_RDCC_18_TC_RDCC_23_manufacturer_name_validation(db_connection: connection | None,validation: dict[str, str]): 
+    print(f"This test case verifies that the manufacturer_name in the fact table is correctly mapped to the name__v in the source rim_ref.manufacturer table.\n")
+    print(f"Identify manufacturer_name in the stg_fact_regcor_drug_substance_registration table that are missing from source table \n")
+    
+    query =f"""select f.manufacturer_name  
+                from {validation['target_schema']}.{validation['target_table']} f
+                left join {validation['source_schema']}.manufacturer m
+                on m.id=f.manufacturer_id
+                where m.id is null"""
+
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+    try:
+        if diff_count == 0:
+            message = f"✅ Target-to-Source check passed: All records from {validation['target_table']} exist in manufacturer."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Target-to-Source check failed: {diff_count} records in {validation['target_table']} missing from manufacturer"
+            logging.error(message)
+            test = False
+
+    except Exception as e:
+        message = f"❌ Error during target-to-source completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
+        
+    assert test,message
+    print(message)
+
+    print(f"Test : Identify manufacturer_name in the source table that are missing in the fact_regcor_drug_substance_registration table:\n")
+    query =f"""SELECT 
+    m.name__v AS manufacturer_name 
+        FROM 
+            {validation['source_schema']}.manufacturer m
+        JOIN 
+            {validation['source_schema']}.registered_active_ingredient rai
+        ON 
+            m.id = rai.manufacturer_name__rim
+        LEFT JOIN 
+            UNNEST(rai.manufacturing_activity__c) AS manufacturing_activity
+        ON 
+            TRUE
+        LEFT JOIN 
+            {validation['target_schema']}.{validation['target_table']} f
+        ON 
+            f.manufacturer_id = m.id
+        WHERE 
+            f.manufacturer_id IS NULL
+            AND manufacturing_activity::TEXT IN (
+                'manufacture_of_active_substance__c', 
+                'manufacture_of_active_substance_intermed__c', 
+                'manufacture_of_fermentation__c', 
+                'micronization_of_active_substance__c', 
+                'packaging_of_active_substance__c'
+    )
+    and 
+    rai.state__v IN ('approved_state1__c', 'no_registration_required_state__c', 'divested_reporting_state__c') 
+ """
+
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+    try:
+        if diff_count == 0:
+            message = f"✅ Source-to-Target check passed: All records from manufacturer exist in {validation['target_table']}."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Source-to-Target check failed: {diff_count} records in manufacturer missing from {validation['target_table']}."
+            logging.error(message)
+            test = False
+
+    except Exception as e:
+        message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
+        
+    assert test,message
+    print(message)
+
+def test_TS_RDCC_18_TC_RDCC_24_application_id_validation(db_connection: connection | None,validation: dict[str, str]): 
+    print(f"This test case verifies that the application_id in the fact table is correctly mapped to the id in the source rim_ref.application table.\n")
+    print(f"Identify application_id in the stg_fact_regcor_drug_substance_registration table that are missing from source table \n")
+    
+    query =f"""select f.application_id  
+                from {validation['target_schema']}.{validation['target_table']} f
+                left join {validation['source_schema']}.application a
+                on a.id=f.application_id
+                where a.id is null"""
+
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+    try:
+        if diff_count == 0:
+            message = f"✅ Target-to-Source check passed: All records from {validation['target_table']} exist in application."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Target-to-Source check failed: {diff_count} records in {validation['target_table']} missing from application."
+            logging.error(message)
+            test = False
+
+    except Exception as e:
+        message = f"❌ Error during target-to-source completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
+        
+    assert test,message
+    print(message)
+
+    print(f"Test : Identify application_id in the source table that are missing in the fact_regcor_drug_substance_registration table:\n")
+    query =f"""SELECT 
+    a.id AS application_id
+        FROM 
+            {validation['source_schema']}.application a
+        JOIN 
+            {validation['source_schema']}.registered_active_ingredient rai
+        ON 
+            a.id = rai.application__rim
+        JOIN 
+            {validation['source_schema']}.{validation['source_table']} r
+        ON   r.id=rai.registration__rim  
+        LEFT JOIN 
+            UNNEST(rai.manufacturing_activity__c) AS manufacturing_activity
+        ON 
+            true
+        LEFT JOIN UNNEST(rai.status__v) AS registerd_status ON 
+            true    
+        LEFT JOIN 
+            {validation['target_schema']}.{validation['target_table']} f
+        ON 
+            f.application_id = a.id
+        WHERE 
+            f.application_id IS NULL
+            AND manufacturing_activity::TEXT IN (
+                'manufacture_of_active_substance__c', 
+                'manufacture_of_active_substance_intermed__c', 
+                'manufacture_of_fermentation__c', 
+                'micronization_of_active_substance__c', 
+                'packaging_of_active_substance__c'
+            )
+            and 
+            rai.state__v IN ('approved_state1__c', 'no_registration_required_state__c', 'divested_reporting_state__c') 
+            and registerd_status='active__v'
+            and r.state__v IN (
+                'approved_state1__c', 
+                'no_registration_required_state__c', 
+                'transferred_state__v', 
+                'expired_import_allowed_state__c'
+            )
+            and 'active_v' = ANY(r.status__v)"""
+
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+    try:
+        if diff_count == 0:
+            message = f"✅ Source-to-Target check passed: All records from application exist in {validation['target_table']}."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Source-to-Target check failed: {diff_count} records in application missing from {validation['target_table']}."
+            logging.error(message)
+            test = False
+
+    except Exception as e:
+        message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
+        
+    assert test,message
+    print(message)
+
+    print("\nIdentify there is no Null values for application_id in dim table.\n")
+    columns_to_check = ['application_id']
+    result, count,msg = check_all_columns_null_combination(db_connection, validation['target_schema'], validation['target_table'], columns_to_check)
+
+    try:
+        if count == 0:
+            message = f"✅ No rows found where all of the columns {columns_to_check} are NULL."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ {count} row(s) found where all of the columns ({columns_to_check}) are NULL."
+            logging.error(message)
+            test = False
+
+    except Exception as e:
+        message =  f"❌ Error checking NULL combinations: {str(e)}"
+        logging.exception(message)
+        test = False
+        
+    assert test,message
+    print(message)
+
+def test_TS_RDCC_18_TC_RDCC_25_application_name_validation(db_connection: connection | None,validation: dict[str, str]): 
+    print(f"This test case verifies that the application_name in the fact table is correctly mapped to the name__v in the source rim_ref.application table.\n")
+    print(f"Identify application_name in the stg_fact_regcor_drug_substance_registration table that are missing from source table \n")
+    
+    query =f"""select f.application_name 
+                from {validation['target_schema']}.{validation['target_table']} f
+                left join {validation['source_schema']}.application a
+                on a.id=f.application_id
+                where a.id is null"""
+
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+    try:
+        if diff_count == 0:
+            message = f"✅ Target-to-Source check passed: All records from {validation['target_table']} exist in application."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Target-to-Source check failed: {diff_count} records in {validation['target_table']} missing from application."
+            logging.error(message)
+            test = False
+
+    except Exception as e:
+        message = f"❌ Error during target-to-source completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
+        
+    assert test,message
+    print(message)
+
+    print(f"Test : Identify application_name in the source table that are missing in the fact_regcor_drug_substance_registration table:\n")
+    query =f"""SELECT 
+    a.name__v AS application_name
+        FROM 
+            {validation['source_schema']}.application a
+        JOIN 
+            {validation['source_schema']}.registered_active_ingredient rai
+        ON 
+            a.id = rai.application__rim
+        JOIN 
+            {validation['source_schema']}.{validation['source_table']} r
+        ON   r.id=rai.registration__rim  
+        LEFT JOIN 
+            UNNEST(rai.manufacturing_activity__c) AS manufacturing_activity
+        ON 
+            true
+        LEFT JOIN UNNEST(rai.status__v) AS registerd_status ON 
+            true    
+        LEFT JOIN 
+            {validation['target_schema']}.{validation['target_table']} f
+        ON 
+            f.application_id = a.id
+        WHERE 
+            f.application_id IS NULL
+            AND manufacturing_activity::TEXT IN (
+                'manufacture_of_active_substance__c', 
+                'manufacture_of_active_substance_intermed__c', 
+                'manufacture_of_fermentation__c', 
+                'micronization_of_active_substance__c', 
+                'packaging_of_active_substance__c'
+            )
+            and 
+            rai.state__v IN ('approved_state1__c', 'no_registration_required_state__c', 'divested_reporting_state__c') 
+            and registerd_status='active__v'
+            and r.state__v IN (
+                'approved_state1__c', 
+                'no_registration_required_state__c', 
+                'transferred_state__v', 
+                'expired_import_allowed_state__c'
+            )
+            and 'active_v' = ANY(r.status__v)"""
+
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+    try:
+        if diff_count == 0:
+            message = f"✅ Source-to-Target check passed: All records from application exist in {validation['target_table']}."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Source-to-Target check failed: {diff_count} records in application missing from {validation['target_table']}."
+            logging.error(message)
+            test = False
+
+    except Exception as e:
+        message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
+        
+    assert test,message
+    print(message)
+
+def test_TS_RDCC_18_TC_RDCC_26_product_family_name_validation(db_connection: connection | None,validation: dict[str, str]): 
+    print(f"This test case verifies that the product_family_name in the fact table is correctly mapped to the name__v in the source rim_ref.product table and is not null.\n")
+    print(f"Identify product_family_name in the stg_fact_regcor_drug_substance_registration table that are missing from source table \n")
+    
+    query =f"""select count(fdm.product_family_name) 
+    from {validation['target_schema']}.{validation['target_table']} fdm  
+	except
+	SELECT count(p.name__v)
+        FROM {validation['source_schema']}.drug_substance ds
+        JOIN {validation['source_schema']}.registered_active_ingredient rai ON ds.id = rai.active_substance__rim
+        JOIN {validation['source_schema']}.product p ON p.id = ds.product__v
+        WHERE  rai.state__v IN (
+                'approved_state1__c', 'no_registration_required_state__c', 'divested_reporting_state__c'
+            )
+            AND 'active_v' = ANY(rai.status__v)"""
+
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+    try:
+        if diff_count == 0:
+            message = f"✅ Target-to-Source check passed: All records from {validation['target_table']} exist in product table."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Target-to-Source check failed: {diff_count} records in {validation['target_table']} missing from product table."
+            logging.error(message)
+            test = False
+
+    except Exception as e:
+        message = f"❌ Error during target-to-source completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
+        
+    assert test,message
+    print(message)
+
+    print(f"Test : Identify product_family_name in the source table that are missing in the {validation['target_schema']}.{validation['target_table']} table:\n")
+    query =f"""SELECT count(p.name__v)
+                FROM {validation['source_schema']}.drug_substance ds
+                JOIN {validation['source_schema']}.registered_active_ingredient rai ON ds.id = rai.active_substance__rim
+                JOIN {validation['source_schema']}.product p ON p.id = ds.product__v
+                WHERE  rai.state__v IN (
+                        'approved_state1__c', 'no_registration_required_state__c', 'divested_reporting_state__c'
+                    )
+                    AND 'active_v' = ANY(rai.status__v);
+                Except
+                select count(fdm.product_family_name) from {validation['target_schema']}.{validation['target_table']} fdm"""
+
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+    try:
+        if diff_count == 0:
+            message = f"✅ Source-to-Target check passed: All records from {validation['source_table']} exist in product table."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Source-to-Target check failed: {diff_count} records in {validation['source_table']} missing from product table."
+            logging.error(message)
+            test = False
+
+    except Exception as e:
+        message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
+        
+    assert test,message
+    print(message)
+
+
 
 
 
