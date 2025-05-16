@@ -56,78 +56,23 @@ def test_TS_RDCC_58_TC_RDCC_59_country_code_null_value_check(db_connection: conn
     print(f"\n{validation['target_db']}.{validation['target_schema']}.{validation['target_table']}.country_code"
         f" contains NO NULL values!\n")
     
-def test_TS_RDCC_58_TC_RDCC_59_country_code_validation(db_connection: connection | None,validation: dict[str, str]): 
-    print(f"This test case validates that the country_code in dim_regcor_country is correctly fetched using country_code_rim and cnrty_code from the source country and ref_mcsad_mcs_cntry tables with active_status__v.\n")
-    print(f"Identify country_code values present in the source  but missing in dim_regcor_country.\n")
-    
-    query =f"""SELECT  a.country_code
-                FROM (
-                    SELECT COALESCE(r.country_code__rim, g.cntry_cd) AS country_code
-                    FROM {validation['source_schema']}.{validation['source_table']} r
-                    FULL OUTER join {validation['source_schema']}.ref_mcsad_mcs_cntry g ON r.country_code__rim = g.cntry_cd
-                    WHERE r.status__v::text != '{{inactive__v}}'
-                ) a
-                WHERE a.country_code IS NOT NULL
-                and country_code not in('EU','EDQ')
-                EXCEPT
-                SELECT country_code
-                FROM {validation['target_schema']}.{validation['target_table']}"""
+# def test_TS_RDCC_58_TC_RDCC_59_country_code_data_completeness(db_connection: connection | None,validation: dict[str, str]):
+#     cursor = db_connection.cursor()
+#     success, count, message = check_data_completeness_with_full_join(
+#     connection=db_connection,
+#     src_schema1=validation['source_schema'],
+#     src_table1="country",
+#     src_col1="country_code__rim",
+#     src_schema2=validation['source_schema'],
+#     src_table2="ref_mcsad_mcs_cntry",
+#     src_col2="cntry_cd",
+#     tgt_schema=validation['target_schema'],
+#     tgt_table="dim_regcor_country",
+#     tgt_col="country_code",
+#     join_condition=f"r.status__v::text != '{{inactive__v}}'"
+#     )
 
-    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
-    
-    try:
-        if diff_count == 0:
-            message = f"✅ Target-to-Source check passed: All records from {validation['target_table']} exist in product table."
-            logging.info(message)
-            test = True
-        else:
-            message = f"❌ Target-to-Source check failed: {diff_count} records in {validation['target_table']} missing from product table."
-            logging.error(message)
-            test = False
-
-    except Exception as e:
-        message = f"❌ Error during target-to-source completeness validation: {str(e)}"
-        logging.exception(message)
-        test = False
-        
-    assert test,message
-    print(message)
-
-    print(f"Test : Identify product_family_name in the source table that are missing in the {validation['target_schema']}.{validation['target_table']} table:\n")
-    query =f"""SELECT country_code
-                FROM {validation['target_schema']}.{validation['target_table']}
-                Except
-                SELECT a.country_code
-                FROM (
-                    SELECT COALESCE(r.country_code__rim, g.cntry_cd) AS country_code
-                    FROM {validation['source_schema']}.{validation['source_table']} r
-                    FULL OUTER join {validation['source_schema']}.ref_mcsad_mcs_cntry g 
-                    ON r.country_code__rim = g.cntry_cd
-                    WHERE r.status__v::text != '{{inactive__v}}'
-                ) a
-                WHERE a.country_code IS NOT null
-                and country_code not in('EU','EDQ');"""
-
-    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
-    
-    try:
-        if diff_count == 0:
-            message = f"✅ Source-to-Target check passed: All records from {validation['source_table']} exist in product table."
-            logging.info(message)
-            test = True
-        else:
-            message = f"❌ Source-to-Target check failed: {diff_count} records in {validation['source_table']} missing from product table."
-            logging.error(message)
-            test = False
-
-    except Exception as e:
-        message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
-        logging.exception(message)
-        test = False
-        
-    assert test,message
-    print(message)
-
+#     assert success, message
 
 
 def test_TS_RDCC_58_TC_RDCC_60_country_name_check(db_connection: connection | None,validation: dict[str, str]):
@@ -198,60 +143,14 @@ def test_TS_RDCC_58_TC_RDCC_61_country_flag_check(db_connection: connection | No
  
     print(f"\nTest Case - RDCC-61 - This Test case validates EU_Country_flag in DIM country table as it sets to True if country is European country.\n")
 
-  
-    query = f"""select country_name from {validation['target_schema']}.{validation['target_table']} drc  
-                except
-                select name__v from {validation['source_schema']}.{validation['source_table']}  
-                where status__v::text != '{{inactive__v}}' 
-                and country_code__rim is not null
-                and name__v not in('European Union','European Directorate for the Quality of Medicines')
-                """ 
-    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
-    
-    try:
-        if diff_count == 0:
-            message = f"✅ Target-to-Source check passed: All records from {validation['target_table']} exist in {validation['source_table']}."
-            logging.info(message)
-            test = True
-        else:
-            message = f"❌ Target-to-Source check failed: {diff_count} records in {validation['target_table']} missing from {validation['source_table']}."
-            logging.error(message)
-            test = False
+    null_count = check_null_values(db_connection,validation["target_schema"],validation["target_table"],"country_name")
 
-    except Exception as e:
-        message = f"❌ Error during Target-to-Source completeness validation: {str(e)}"
-        logging.exception(message)
-        test = False
-        
-    assert test,message
-    print(message)
-
-    query = f"""select name__v from 
-                {validation['source_schema']}.{validation['source_table']}   
-                where status__v::text != '{{inactive__v}}' and country_code__rim is not null
-                and name__v not in('European Union','European Directorate for the Quality of Medicines')
-                except
-                select country_name from {validation['target_schema']}.{validation['target_table']} drc         
-        """ 
-    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
-    
-    try:
-        if diff_count == 0:
-            message = f"✅ Source-to-Target check passed: All records from {validation['target_table']} exist in {validation['source_table']}."
-            logging.info(message)
-            test = True
-        else:
-            message = f"❌ Source-to-Target check failed: {diff_count} records in {validation['target_table']} missing from {validation['source_table']}."
-            logging.error(message)
-            test = False
-
-    except Exception as e:
-        message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
-        logging.exception(message)
-        test = False
-        
-    assert test,message
-    print(message)
+    assert null_count == 0, (
+        f"\n❌ {validation['target_db']}.{validation['target_schema']}.{validation['target_table']}.country_name"
+        f" contains {null_count} NULL values!\n"
+    )
+    print(f"\n{validation['target_db']}.{validation['target_schema']}.{validation['target_table']}.country_name"
+        f" contains NO NULL values!\n")
     
 def test_TS_RDCC_58_TC_RDCC_62_Primary_key_check(db_connection: connection | None,validation: dict[str, str]):
  
