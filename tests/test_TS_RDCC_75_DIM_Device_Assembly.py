@@ -26,7 +26,7 @@
 #     }
 # # This Test set contains test cases for Dim drug Assembly event.
 
-# def test_validate_connection(db_connection: connection | None, validation: dict[str, str]):
+# def test_TS_RDCC_75_TC_RDCC_76_Drug_Assembly_checks(db_connection: connection | None,validation: dict[str, str]): 
 #     """
 #     Test to validate that a connection to the database can be established.
 #     """
@@ -39,34 +39,30 @@
 #     except Exception as e:
 #         pytest.fail(f"❌ Failed to connect to {validation['target_db']}: {str(e)}")
 
-# def test_table_exists(db_connection: connection | None,validation: dict[str, str]):
-    
-#     print(f"TS-RDCC-75-This Test set contains test cases for Dim Device Assembly Event.")
 #     assert validate_table_exists( db_connection,validation["target_schema"], validation["target_table"]), "❌ Target Table does not exist!"
 #     print(f"\nTable {validation["target_table"]} exists.")
 
-# def test_TS_RDCC_75_TC_RDCC_76_data_completeness(db_connection: connection | None,validation: dict[str, str]): 
 #     print(f"This Test case validates the columns in dim_regcor_device_assembly is correctly fetched with concept_code,relation_code_to in source dim_rdm_regcor_master.\n")
 #     print(f"Test 1 : Identify records in the dim_regcor_device_assembly table that are missing in the source table (dim_rdm_regcor_master_table):\n")
 #     query = f"""SELECT 
 #     s.da_material_number, 
 #     s.event_id 
-#     FROM {validation['target_schema']}.{validation['target_table']} s
-#     LEFT JOIN (
-#         SELECT 
-#             concept_code AS da_material_number, 
-#             relation_code_to AS event_id 
-#         FROM {validation['source_schema']}.{validation['source_table']}
-#         WHERE 
-#             vocabulary_name = 'DA Flavor'
-#             AND relation_name = 'RIM Event'
-#         GROUP BY 
-#             concept_code, relation_code_to
-#     ) src
-#     ON s.da_material_number = src.da_material_number 
-#     AND s.event_id = src.event_id
-#     WHERE src.da_material_number IS NULL 
-#    OR src.event_id IS NULL;"""
+#             FROM {validation['target_schema']}.{validation['target_table']} s
+#             except 
+#             SELECT 
+#                 src.da_material_number, 
+#                 src.event_id 
+#             FROM (
+#                 SELECT 
+#                     concept_code AS da_material_number, 
+#                     relation_code_to AS event_id 
+#                 FROM {validation['source_schema']}.{validation['source_table']}
+#                 WHERE 
+#                     vocabulary_name = 'DA Flavor'
+#                     AND relation_name = 'RIM Event'
+#                 GROUP BY 
+#                     concept_code, relation_code_to
+#             ) src"""
     
 #     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
     
@@ -92,22 +88,23 @@
 #     query = f"""SELECT 
 #     src.da_material_number, 
 #     src.event_id 
-#     FROM (
-#         SELECT 
-#             concept_code AS da_material_number, 
-#             relation_code_to AS event_id 
-#         FROM {validation['source_schema']}.{validation['source_table']}
-#         WHERE 
-#             vocabulary_name = 'DA Flavor'
-#             AND relation_name = 'RIM Event'
-#         GROUP BY 
-#             concept_code, relation_code_to
-#     ) src
-#     LEFT JOIN {validation['target_schema']}.{validation['target_table']} s
-#     ON s.da_material_number = src.da_material_number 
-#     AND s.event_id = src.event_id
-#     WHERE s.da_material_number IS NULL 
-#    OR s.event_id IS NULL;"""
+#             FROM (
+#                 SELECT 
+#                     concept_code AS da_material_number, 
+#                     relation_code_to AS event_id 
+#                 FROM {validation['source_schema']}.{validation['source_table']}
+#                 WHERE 
+#                     vocabulary_name = 'DA Flavor'
+#                     AND relation_name = 'RIM Event'
+#                 GROUP BY 
+#                     concept_code, relation_code_to
+#             ) src
+#             except
+#             SELECT 
+#                 s.da_material_number, 
+#                 s.event_id 
+#             FROM {validation['target_schema']}.{validation['target_table']} s
+#             """
     
 #     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
     
