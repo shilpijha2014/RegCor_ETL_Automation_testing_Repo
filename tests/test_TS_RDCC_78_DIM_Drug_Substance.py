@@ -25,7 +25,7 @@
 
 # #This Test set includes tests of DIM Drug Substance.
 
-# def test_validate_connection(db_connection: connection | None, validation: dict[str, str]):
+# def test_TS_RDCC_78_TC_RDCC_79_Drug_Substance_Validation(db_connection: connection | None,validation: dict[str, str]): 
 #     """
 #     Test to validate that a connection to the database can be established.
 #     """
@@ -38,13 +38,9 @@
 #     except Exception as e:
 #         pytest.fail(f"❌ Failed to connect to {validation['target_db']}: {str(e)}")
 
-# def test_table_exists(db_connection: connection | None,validation: dict[str, str]):
-    
-#     print(f"TS-RDCC-69-This Test set contains test cases for Dim drug substance event")
 #     assert validate_table_exists( db_connection,validation["target_schema"], validation["target_table"]), "❌ Target Table does not exist!"
 #     print(f"\nTable {validation["target_table"]} exists.")
 
-# def test_TS_RDCC_78_TC_RDCC_79_data_completeness(db_connection: connection | None,validation: dict[str, str]): 
 #     print(f"RDCC-79-This Test case validates ds_materiel_number coulmn  data in dim drug substance table is correctly fetched from dim_rdm_regcor_master_table for DS Flavour Vocabulary name.\n")
 #     print(f"Test 1 : Identify ds_material_number in the dim_regcor_drug_substance table that are missing in the source table (dim_rdm_regcor_master_table):\n")
 #     success, count, msg = validate_target_to_source_with_filter(
@@ -87,10 +83,10 @@
 
 # def test_TS_RDCC_78_TC_RDCC_80_process_identifier_validation(db_connection: connection | None,validation: dict[str, str]):
 #     print("\nIdentify process_identfier in the dim_regcor_drug_substance table that are missing in the source table (dim_rdm_regcor_master_table): \n")
-#     query =f"""SELECT tgt.process_identifier 
+#     query =f"""SELECT tgt.ds_material_number,tgt.process_identifier 
 #     FROM {validation['target_schema']}.{validation['target_table']} tgt
 #     except
-#     SELECT 
+#     SELECT concept_code, 
 #     MAX(CASE WHEN property_name = 'Process Identifier' THEN property_value END) AS process_identifier
 #         FROM {validation['source_schema']}.{validation['source_table']}
 #         WHERE vocabulary_name = 'DS Flavor'
@@ -115,14 +111,14 @@
 #     assert test,message
 #     print(message)
 
-#     query =f"""SELECT 
+#     query =f"""SELECT concept_code, 
 #         MAX(CASE WHEN property_name = 'Process Identifier' THEN property_value END) 
 #         AS process_identifier
 #         FROM {validation['source_schema']}.{validation['source_table']}
 #         WHERE vocabulary_name = 'DS Flavor'
 #         group by concept_code 
 #     except 
-#     SELECT tgt.process_identifier 
+#     SELECT tgt.ds_material_number, tgt.process_identifier 
 #     FROM {validation['target_schema']}.{validation['target_table']} tgt"""
     
 #     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
@@ -156,11 +152,11 @@
 
 # def test_TS_RDCC_78_TC_RDCC_81_drug_substance_validation(db_connection: connection | None,validation: dict[str, str]):
 #     print("\nIdentify drug_substance in the dim_regcor_drug_substance table that are missing in the source table (dim_rdm_regcor_master_table): \n")
-#     query =f"""SELECT 
+#     query =f"""SELECT tgt.ds_material_number,
 #     tgt.drug_substance
 #     FROM {validation['target_schema']}.{validation['target_table']} tgt
 #     except
-#     SELECT  
+#     SELECT  concept_code,
 #         MAX(CASE WHEN property_name = 'RIM Drug Substance' THEN property_value END) AS drug_substance
 #     FROM {validation['source_schema']}.{validation['source_table']}
 #     WHERE vocabulary_name = 'DS Flavor'
@@ -185,13 +181,13 @@
 #     assert test,message
 #     print(message)
 
-#     query =f"""SELECT  
+#     query =f"""SELECT concept_code, 
 #         MAX(CASE WHEN property_name = 'RIM Drug Substance' THEN property_value END) AS drug_substance
 #         FROM {validation['source_schema']}.{validation['source_table']}
 #         WHERE vocabulary_name = 'DS Flavor'
 #         GROUP BY concept_code
 #         except 
-#         SELECT 
+#         SELECT  tgt.ds_material_number,
 #             tgt.drug_substance
 #         FROM {validation['target_schema']}.{validation['target_table']} tgt"""
     
@@ -215,22 +211,14 @@
 #     assert test,message
 #     print(message)
 
-#     print("\nIdentify there is no Null values for drug_substance in dim table.\n")
-#     columns_to_check = ["drug_substance"]
-#     result = check_columns_for_nulls(db_connection, validation['target_schema'], validation['target_table'], columns_to_check)
-
-#     for col, null_count in result.items():
-#         message = f"✅ Column '{col}' has no NULL values." if null_count == 0 else f"❌ Column '{col}' contains {null_count} NULL values."
-#         print(message)
-#         assert null_count == 0, message
 
 # def test_TS_RDCC_78_TC_RDCC_82_drug_substance_manufacturer_validation(db_connection: connection | None,validation: dict[str, str]):
 #     print("\nIdentify drug_substance_manufacturer in the dim_regcor_drug_substance table that are missing in the source table (dim_rdm_regcor_master_table): \n")
-#     query =f"""SELECT 
+#     query =f"""SELECT tgt.ds_material_number,
 #     tgt.drug_substance_manufacturer
 #     FROM {validation['target_schema']}.{validation['target_table']} tgt
 #     except
-#     SELECT  
+#     SELECT concept_code, 
 #         max(case when property_name = 'Manufacturer' then property_value end) as drug_substance_manufacturer 
 #         FROM {validation['source_schema']}.{validation['source_table']}
 #         WHERE vocabulary_name = 'DS Flavor'
@@ -255,13 +243,13 @@
 #     assert test,message
 #     print(message)
 
-#     query =f"""SELECT  
+#     query =f"""SELECT  concept_code,
 #         max(case when property_name = 'Manufacturer' then property_value end) as drug_substance_manufacturer 
 #         FROM {validation['source_schema']}.{validation['source_table']}
 #         WHERE vocabulary_name = 'DS Flavor'
 #         GROUP BY concept_code
 #         except 
-#         SELECT 
+#         SELECT tgt.ds_material_number,
 #             tgt.drug_substance_manufacturer
 #         FROM {validation['target_schema']}.{validation['target_table']} tgt"""
     
@@ -285,22 +273,13 @@
 #     assert test,message
 #     print(message)
 
-#     print("\nIdentify there is no Null values for drug_substance in dim table.\n")
-#     columns_to_check = ["drug_substance_manufacturer"]
-#     result = check_columns_for_nulls(db_connection, validation['target_schema'], validation['target_table'], columns_to_check)
-
-#     for col, null_count in result.items():
-#         message = f"✅ Column '{col}' has no NULL values." if null_count == 0 else f"❌ Column '{col}' contains {null_count} NULL values."
-#         print(message)
-#         assert null_count == 0, message
-
 # def test_TS_RDCC_78_TC_RDCC_83_family_item_code_validation(db_connection: connection | None,validation: dict[str, str]):
 #     print("\nIdentify family_item_code in the dim_regcor_drug_substance table that are missing in the source table (dim_rdm_regcor_master_table): \n")
-#     query =f"""SELECT 
+#     query =f"""SELECT  tgt.ds_material_number,
 #     tgt.family_item_code
 #     FROM {validation['target_schema']}.{validation['target_table']} tgt
 #     except
-#     SELECT  
+#     SELECT concept_code,
 #         MAX(CASE WHEN property_name = 'Family Item Code' THEN property_value END) AS family_item_code
 #         FROM {validation['source_schema']}.{validation['source_table']}
 #         WHERE vocabulary_name = 'DS Flavor'
@@ -326,14 +305,14 @@
 #     assert test,message
 #     print(message)
 
-#     query =f"""SELECT  
+#     query =f"""SELECT concept_code,
 #     MAX(CASE WHEN property_name = 'Family Item Code' THEN property_value END) AS family_item_code
 #     FROM {validation['source_schema']}.{validation['source_table']}
 #     WHERE vocabulary_name = 'DS Flavor'
 #     GROUP BY concept_code
 #     except 
 #     SELECT 
-#         tgt.family_item_code
+#          tgt.ds_material_number,tgt.family_item_code
 #     FROM {validation['target_schema']}.{validation['target_table']} tgt"""
     
 #     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
@@ -356,27 +335,21 @@
 #     assert test,message
 #     print(message)
 
-#     print("\nIdentify there is no Null values for drug_substance in dim table.\n")
-#     columns_to_check = ["family_item_code"]
-#     result = check_columns_for_nulls(db_connection, validation['target_schema'], validation['target_table'], columns_to_check)
 
-#     for col, null_count in result.items():
-#         message = f"✅ Column '{col}' has no NULL values." if null_count == 0 else f"❌ Column '{col}' contains {null_count} NULL values."
-#         print(message)
-#         assert null_count == 0, message
 
 # def test_TS_RDCC_78_TC_RDCC_84_validations(db_connection: connection | None,validation: dict[str, str]):
 #     print("\nIdentify manufacturer_id and sap_plant_code in the dim_regcor_drug_substance table that are missing in the source table (dim_rdm_regcor_master_table): \n")
-#     query =f"""select drug_substance_manufacturer,manufacturer_id,sap_plant_code 
+#     query =f"""select ds_material_number,drug_substance_manufacturer,
+#         manufacturer_id,sap_plant_code
 #         from {validation['target_schema']}.{validation['target_table']} ds   
 #         except 
-#         select 
+#         select ds.concept_code,
 #         ds.drug_substance_manufacturer, 
 #         dm.manufacturer_id, 
 #         dm.sap_plant_code 
 #         from 
 #         ( 
-#         select 
+#         select concept_code,
 #         max(case when property_name = 'Manufacturer' then property_value end) as drug_substance_manufacturer 
 #         from 
 #         {validation['source_schema']}.{validation['source_table']}
@@ -408,13 +381,13 @@
 #     assert test,message
 #     print(message)
 
-#     query =f"""select 
+#     query =f"""select ds.concept_code,
 #         ds.drug_substance_manufacturer, 
 #         dm.manufacturer_id, 
 #         dm.sap_plant_code 
 #         from 
 #         ( 
-#         select 
+#         select concept_code,
 #         max(case when property_name = 'Manufacturer' then property_value end) as drug_substance_manufacturer 
 #         from 
 #         {validation['source_schema']}.{validation['source_table']}
@@ -426,7 +399,7 @@
 #         left join regcor_refine.dim_regcor_manufacturer dm on 
 #         ds.drug_substance_manufacturer = dm.manufacturer 
 #         except 
-#         select drug_substance_manufacturer,manufacturer_id,sap_plant_code 
+#         select ds_material_number, drug_substance_manufacturer,manufacturer_id,sap_plant_code 
 #         from {validation['target_schema']}.{validation['target_table']} ds"""
     
 #     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
