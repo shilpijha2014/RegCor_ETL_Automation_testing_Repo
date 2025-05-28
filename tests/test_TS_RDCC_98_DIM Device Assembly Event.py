@@ -25,7 +25,7 @@
 
 # #This Test set includes tests of DIM Drug Assembly Table.
 
-# def test_validate_connection(db_connection: connection | None, validation: dict[str, str]):
+# def test_TS_RDCC_98_TC_RDCC_99_da_material_number_validation(db_connection: connection | None,validation: dict[str, str]): 
 #     """
 #     Test to validate that a connection to the database can be established.
 #     """
@@ -38,15 +38,11 @@
 #     except Exception as e:
 #         pytest.fail(f"❌ Failed to connect to {validation['target_db']}: {str(e)}")
 
-# def test_table_exists(db_connection: connection | None,validation: dict[str, str]):
-    
-#     print(f"TS-RDCC-69-This Test set contains test cases for Dim drug substance event")
 #     assert validate_table_exists( db_connection,validation["target_schema"], validation["target_table"]), "❌ Target Table does not exist!"
 #     print(f"\nTable {validation["target_table"]} exists.")
 
-# def test_TS_RDCC_98_TC_RDCC_99_da_material_number_validation(db_connection: connection | None,validation: dict[str, str]): 
 #     print(f"RDCC-99-This Test case validates da_materiel_number coulmn  data in dim device assembly table is correctly fetched from dim_rdm_regcor_master_table for DA Flavour Vocabulary name.\n")
-#     print(f"Test 1 : Identify da_material_number in the dim_regcor_drug_substance table that are missing in the source table (dim_rdm_regcor_master_table):\n")
+#     print(f"Identify da_material_number in the dim_regcor_drug_substance table that are missing in the source table (dim_rdm_regcor_master_table):\n")
 #     success, count, msg = validate_target_to_source_with_filter(
 #         connection=db_connection,
 #         src_schema=validation['source_schema'],
@@ -90,10 +86,10 @@
 #     print(f"RDCC-100-This Test case validates the device assembly manufacturer in dim device assembly is correctly retrive property_value using property_name as “Manufacturer”  for DA flavour as vocabulary name.\n")
 #     print(f"Test 1 : Identify device_assembly_manufacturer in the dim_regcor_drug_assembly table that are missing in the source table (dim_rdm_regcor_master_table):  \n")
 
-#     query =f"""SELECT tgt.device_assembly_manufacturer 
+#     query =f"""SELECT tgt.da_material_number, tgt.device_assembly_manufacturer 
 #     FROM {validation['target_schema']}.{validation['target_table']} tgt
 #     except
-#     SELECT 
+#     SELECT concept_code,
 #     MAX(CASE WHEN property_name = 'Manufacturer' THEN property_value END) AS device_assembly_manufacturer
 #         FROM {validation['source_schema']}.{validation['source_table']}
 #         WHERE vocabulary_name = 'DA Flavor'
@@ -119,13 +115,13 @@
 #     assert test,message
 #     print(message)
 
-#     query =f"""SELECT 
+#     query =f"""SELECT concept_code,
 #     MAX(CASE WHEN property_name = 'Manufacturer' THEN property_value END) AS device_assembly_manufacturer
 #         FROM {validation['source_schema']}.{validation['source_table']}
 #         WHERE vocabulary_name = 'DA Flavor'
 #         group by concept_code 
 #     except 
-#     SELECT tgt.device_assembly_manufacturer 
+#     SELECT tgt.da_material_number,tgt.device_assembly_manufacturer 
 #     FROM {validation['target_schema']}.{validation['target_table']} tgt"""
 #     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
     
@@ -152,10 +148,10 @@
 #     print(f"RDCC-100-This Test case validates the da manufacturing line in dim device assembly is correctly retriving  property_value using property_name as “Manufacturing Line”  from dim_rdm_regcor_master_table for DA flavour as vocabulary name\n")
 #     print(f"Test 1 : Identify da_manufacturing_line in the dim_regcor_device_assembly table that are missing in the source table (dim_rdm_regcor_master_table):  \n")
 
-#     query =f"""SELECT tgt.da_manufacturing_line 
+#     query =f"""SELECT tgt.da_material_number, tgt.da_manufacturing_line 
 #     FROM {validation['target_schema']}.{validation['target_table']} tgt
 #     except
-#     SELECT 
+#     SELECT concept_code,
 #     MAX(CASE WHEN property_name = 'Manufacturing Line' THEN property_value END) AS da_manufacturing_line
 #         FROM  {validation['source_schema']}.{validation['source_table']}
 #         WHERE vocabulary_name = 'DA Flavor'
@@ -180,13 +176,13 @@
 #     assert test,message
 #     print(message)
 
-#     query =f"""SELECT 
+#     query =f"""SELECT concept_code,
 #     MAX(CASE WHEN property_name = 'Manufacturing Line' THEN property_value END) AS da_manufacturing_line
 #     FROM {validation['source_schema']}.{validation['source_table']}
 #     WHERE vocabulary_name = 'DA Flavor'
 #     group by concept_code 
-#     except 
-#     SELECT tgt.da_manufacturing_line 
+#     except  
+#     SELECT tgt.da_material_number,tgt.da_manufacturing_line 
 #     FROM {validation['target_schema']}.{validation['target_table']} tgt"""
 
 #     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
@@ -213,10 +209,10 @@
 #     print(f"RDCC-102-This Test case validates the family_item_code in dim device assembly is correctly Retrieve property_value using property_name as 'Family Item Code'  from dim_rdm_regcor_master_table for DA flavour as vocabulary name\n")
 #     print(f"Test 1 : Identify family_item_code in the dim_regcor_device_assembly table that are missing in the source table (dim_rdm_regcor_master_table):  \n")
 
-#     query =f"""SELECT tgt.family_item_code 
+#     query =f"""SELECT  tgt.da_material_number, tgt.family_item_code 
 #     FROM {validation['target_schema']}.{validation['target_table']} tgt
 #     except
-#     SELECT 
+#     SELECT concept_code,
 #     MAX(CASE WHEN property_name = 'Family Item Code' THEN property_value END) AS family_item_code
 #         FROM  {validation['source_schema']}.{validation['source_table']}
 #         WHERE vocabulary_name = 'DA Flavor'
@@ -241,14 +237,79 @@
 #     assert test,message
 #     print(message)
 
-#     query =f"""SELECT 
+#     query =f"""SELECT concept_code,
 #     MAX(CASE WHEN property_name = 'Family Item Code' THEN property_value END) AS family_item_code
 #     FROM {validation['source_schema']}.{validation['source_table']}
 #     WHERE vocabulary_name = 'DA Flavor'
 #     group by concept_code 
 #     except 
-#     SELECT tgt.family_item_code 
+#     SELECT  tgt.da_material_number, tgt.family_item_code 
 #     FROM {validation['target_schema']}.{validation['target_table']} tgt"""
+
+#     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+#     try:
+#         if diff_count == 0:
+#             message = f"✅ Source-to-Target check passed: All records from {validation['source_table']} exist in {validation['target_table']}."
+#             logging.info(message)
+#             test = True
+#         else:
+#             message = f"❌ Source-to-Target check failed: {diff_count} records in {validation['source_table']} missing from {validation['target_table']}."
+#             logging.error(message)
+#             test = False
+
+#     except Exception as e:
+#         message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
+#         logging.exception(message)
+#         test = False
+        
+#     assert test,message
+#     print(message)
+
+
+# def test_TS_RDCC_98_TC_RDCC_102_family_item_code_manufacturer_key_validation(db_connection: connection | None,validation: dict[str, str]): 
+#     print(f"RDCC-105-This test case Validates the concatenation rule to populate material_plant_key in Dim device assembly.\n")
+#     print(f"Test 1 : Identify family_item_code_manufacturer_key in the dim_regcor_device_assembly table that are missing in the source table (dim_rdm_regcor_master_table):  \n")
+
+#     query =f"""SELECT tgt.family_item_code
+#     FROM  {validation['target_schema']}.{validation['target_table']} tgt
+#     except
+#     SELECT 
+#     MAX(CASE WHEN property_name = 'Family Item Code' THEN property_value END) AS family_item_code
+#     FROM {validation['source_schema']}.{validation['source_table']}
+#     WHERE vocabulary_name = 'DA Flavor'
+#     group by concept_code"""
+
+#     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+#     try:
+#         if diff_count == 0:
+#             message = f"✅ Target-to-Source check passed: All records from {validation['target_table']} exist in {validation['source_table']}."
+#             logging.info(message)
+#             test = True
+#         else:
+#             message = f"❌ Target-to-Source check failed: {diff_count} records in {validation['target_table']} missing from {validation['source_table']}."
+#             logging.error(message)
+#             test = False
+
+#     except Exception as e:
+#         message = f"❌ Error during target-to-source completeness validation: {str(e)}"
+#         logging.exception(message)
+#         test = False
+        
+#     assert test,message
+#     print(message)
+
+#     query =f"""
+#     SELECT 
+# MAX(CASE WHEN property_name = 'Family Item Code' THEN property_value END) AS family_item_code
+# FROM {validation['source_schema']}.{validation['source_table']}
+#     WHERE vocabulary_name = 'DA Flavor'
+#     group by concept_code 
+# except 
+# SELECT tgt.family_item_code 
+# FROM {validation['target_schema']}.{validation['target_table']} tgt
+# """
 
 #     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
     
@@ -274,7 +335,8 @@
 #     print(f"RDCC-102-This test case validates manufacturer_id & sap_plant_code in dim device assembly table retrives data from di_regcor_manufacturer table.\n")
 #     print(f"Test 1 : Identify manufacturer_id & sap_plant_code in the dim_regcor_device_assembly table that are missing in the source table (dim_rdm_regcor_master_table):  \n")
 
-#     query =f"""select device_assembly_manufacturer, manufacturer_id,sap_plant_code from {validation['target_schema']}.{validation['target_table']}
+#     query =f"""select device_assembly_manufacturer, manufacturer_id,sap_plant_code 
+#         from {validation['target_schema']}.{validation['target_table']}
 #         except
 #         select 
 #         da.device_assembly_manufacturer, 
@@ -332,70 +394,6 @@
 #         da.device_assembly_manufacturer = mf.manufacturer
 #         except
 #         select device_assembly_manufacturer, manufacturer_id,sap_plant_code from {validation['target_schema']}.{validation['target_table']}"""
-
-#     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
-    
-#     try:
-#         if diff_count == 0:
-#             message = f"✅ Source-to-Target check passed: All records from {validation['source_table']} exist in {validation['target_table']}."
-#             logging.info(message)
-#             test = True
-#         else:
-#             message = f"❌ Source-to-Target check failed: {diff_count} records in {validation['source_table']} missing from {validation['target_table']}."
-#             logging.error(message)
-#             test = False
-
-#     except Exception as e:
-#         message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
-#         logging.exception(message)
-#         test = False
-        
-#     assert test,message
-#     print(message)
-
-# def test_TS_RDCC_98_TC_RDCC_105_family_item_code_manufacturer_key_validation(db_connection: connection | None,validation: dict[str, str]): 
-#     print(f"RDCC-105-This test case Validates the concatenation rule to populate material_plant_key in Dim device assembly.\n")
-#     print(f"Test 1 : Identify family_item_code_manufacturer_key in the dim_regcor_device_assembly table that are missing in the source table (dim_rdm_regcor_master_table):  \n")
-
-#     query =f"""SELECT tgt.family_item_code
-#     FROM  {validation['target_schema']}.{validation['target_table']} tgt
-#     except
-#     SELECT 
-#     MAX(CASE WHEN property_name = 'Family Item Code' THEN property_value END) AS family_item_code
-#     FROM {validation['source_schema']}.{validation['source_table']}
-#     WHERE vocabulary_name = 'DA Flavor'
-#     group by concept_code"""
-
-#     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
-    
-#     try:
-#         if diff_count == 0:
-#             message = f"✅ Target-to-Source check passed: All records from {validation['target_table']} exist in {validation['source_table']}."
-#             logging.info(message)
-#             test = True
-#         else:
-#             message = f"❌ Target-to-Source check failed: {diff_count} records in {validation['target_table']} missing from {validation['source_table']}."
-#             logging.error(message)
-#             test = False
-
-#     except Exception as e:
-#         message = f"❌ Error during target-to-source completeness validation: {str(e)}"
-#         logging.exception(message)
-#         test = False
-        
-#     assert test,message
-#     print(message)
-
-#     query =f"""
-#     SELECT 
-# MAX(CASE WHEN property_name = 'Family Item Code' THEN property_value END) AS family_item_code
-# FROM {validation['source_schema']}.{validation['source_table']}
-#     WHERE vocabulary_name = 'DA Flavor'
-#     group by concept_code 
-# except 
-# SELECT tgt.family_item_code 
-# FROM {validation['target_schema']}.{validation['target_table']} tgt
-# """
 
 #     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
     

@@ -23,9 +23,9 @@
 #         "target_table": "stg_dim_regcor_container_closure_system"
 #     }
 
-# #This Test set includes test cases of DIM master RDM.
+# #This Test set includes test cases of DIM container closure system.
 
-# def test_validate_connection(db_connection: connection | None, validation: dict[str, str]):
+# def test_TS_RDCC_202_TC_RDCC_203_container_closure_system_name_validation(db_connection: connection | None,validation: dict[str, str]): 
 #     """
 #     Test to validate that a connection to the database can be established.
 #     """
@@ -38,12 +38,9 @@
 #     except Exception as e:
 #         pytest.fail(f"❌ Failed to connect to {validation['target_db']}: {str(e)}")
 
-# def test_table_exists(db_connection: connection | None,validation: dict[str, str]):
-    
 #     assert validate_table_exists( db_connection,validation["target_schema"], validation["target_table"]), "❌ Target Table does not exist!"
 #     print(f"\nTable {validation["target_table"]} exists.")
 
-# def test_TS_RDCC_202_TC_RDCC_203_container_closure_system_name_validation(db_connection: connection | None,validation: dict[str, str]): 
 #     print(f"\nThis test case verifies that container_closure_system_name and container_closure_system_description in dim_regcor_container_closure_system are correctly retrieved using concept_code and concept_name from the source table dim_rdm_regcor_master, with the filter Vocabulary_name set to 'Container Closure System'\n")
 #     print(f"Test 1 : Identify records in the dim_regcor_container_closure_system table that are missing in the source table (dim_rdm_regcor_master_table):\n")
 #     query =f"""SELECT  

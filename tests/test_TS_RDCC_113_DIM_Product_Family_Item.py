@@ -25,7 +25,7 @@
 
 # #This Test set includes test cases of DIM Product Family Item Configuration .
 
-# def test_validate_connection(db_connection: connection | None, validation: dict[str, str]):
+# def test_TS_RDCC_113_TC_RDCC_114_product_configuration_name_validation(db_connection: connection | None,validation: dict[str, str]): 
 #     """
 #     Test to validate that a connection to the database can be established.
 #     """
@@ -37,13 +37,10 @@
 
 #     except Exception as e:
 #         pytest.fail(f"❌ Failed to connect to {validation['target_db']}: {str(e)}")
-
-# def test_table_exists(db_connection: connection | None,validation: dict[str, str]):
-    
+  
 #     assert validate_table_exists( db_connection,validation["target_schema"], validation["target_table"]), "❌ Target Table does not exist!"
 #     print(f"\nTable {validation["target_table"]} exists.")
 
-# def test_TS_RDCC_113_TC_RDCC_114_product_configuration_name_validation(db_connection: connection | None,validation: dict[str, str]): 
 #     print(f"RDCC-114-This test case ensures that the product_configuration_name column data in the dim_product_family_item_configuration table is accurately retrieved from the dim_rdm_regcor_master_table by filtering the vocabulary name with 'Product Family Item Configuration'.\n")
 #     print(f"Test 1 : Identify product_configuration_name in the dim_regcor_product_family_item_configuration table that are missing in the source table (dim_rdm_regcor_master_table):\n")
 #     query =f"""select drds.product_configuration_name 
@@ -113,10 +110,10 @@
 # def test_TS_RDCC_113_TC_RDCC_115_description_validation(db_connection: connection | None,validation: dict[str, str]): 
 #     print(f"RDCC-115-This test case ensures that the description column data in the dim_product_family_item_configuration table is accurately retrieved from the dim_rdm_regcor_master_table by filtering the vocabulary name with 'Product Family Item Configuration'.\n")
 #     print(f"Test 1 : Identify description in the dim_regcor_product_family_item_configuration table that are missing in the source table (dim_rdm_regcor_master_table):\n")
-#     query =f"""select drds.description  
+#     query =f"""select drds.product_configuration_name ,drds.description  
 #                 from {validation['target_schema']}.{validation['target_table']} drds
 #                 except
-#                 select drrmt.concept_name  
+#                 select drrmt.concept_code,drrmt.concept_name  
 #                 from {validation['source_schema']}.{validation['source_table']} drrmt 
 #                 where drrmt.vocabulary_name='Product Family Item Configuration'"""
 
@@ -141,11 +138,11 @@
 #     print(message)
 
 #     query =f"""
-#         select drrmt.concept_name 
+#         select drrmt.concept_code,drrmt.concept_name 
 #                 from {validation['source_schema']}.{validation['source_table']} drrmt 
 #                 where drrmt.vocabulary_name='Product Family Item Configuration'
 #         except 
-#         select drds.description  
+#         select drds.product_configuration_name ,drds.description  
 #                 from {validation['target_schema']}.{validation['target_table']} drds
 # """
 #     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
@@ -180,10 +177,10 @@
 # def test_TS_RDCC_113_TC_RDCC_116_dosage_strength_validation(db_connection: connection | None,validation: dict[str, str]): 
 #     print(f"RDCC-116-This test case ensures that the dosage_strength in the dim_product_family_item_configuration table is accurately retrieved as property_value using property_name as 'Dosage Strength', with the filter condition 'Product Family Item Configuration' as the vocabulary name from the dim_rdm_regcor_master_table..\n")
 #     print(f"Test 1 : Identify dosage_strength  in the dim_regcor_product_family_item_configuration table that are missing in the source table (dim_rdm_regcor_master_table):\n")
-#     query =f"""select drds.dosage_strength  
+#     query =f"""select drds.product_configuration_name ,drds.dosage_strength  
 #                 from {validation['target_schema']}.{validation['target_table']} drds
 #                 except
-#                 SELECT 
+#                 SELECT concept_code,
 #                 MAX(CASE WHEN property_name = 'Dosage Strength' THEN property_value END) AS dosage_strength
 #                     FROM {validation['source_schema']}.{validation['source_table']}
 #                     WHERE vocabulary_name = 'Product Family Item Configuration'
@@ -211,13 +208,13 @@
 #     print(message)
 
 #     query =f"""
-#         SELECT 
+#         SELECT concept_code,
 #                 MAX(CASE WHEN property_name = 'Dosage Strength' THEN property_value END) AS dosage_strength
 #                     FROM {validation['source_schema']}.{validation['source_table']}
 #                     WHERE vocabulary_name = 'Product Family Item Configuration'
 #                     group by concept_code 
 #         except 
-#         select drds.dosage_strength  
+#         select drds.product_configuration_name ,drds.dosage_strength  
 #                 from {validation['target_schema']}.{validation['target_table']} drds
 # """
 #     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
@@ -243,10 +240,10 @@
 # def test_TS_RDCC_113_TC_RDCC_117_dosage_strength__units_validation(db_connection: connection | None,validation: dict[str, str]): 
 #     print(f"RDCC-117-This test case ensures that the dosage_strength_units in the dim_product_family_item_configuration table is accurately retrieved as property_value using property_name as 'Dosage Strength units', with the filter condition 'Product Family Item Configuration' as the vocabulary name from the dim_rdm_regcor_master_table.\n")
 #     print(f"Test 1 : Identify dosage_strength_units in the dim_regcor_product_family_item_configuration table that are missing in the source table (dim_rdm_regcor_master_table):\n")
-#     query =f"""SELECT tgt.dosage_strength_units
+#     query =f"""SELECT tgt.product_configuration_name ,tgt.dosage_strength_units
 #                 FROM {validation['target_schema']}.{validation['target_table']} tgt
 #                 except
-#                 SELECT 
+#                 SELECT concept_code,
 #                 MAX(CASE WHEN property_name = 'Dosage Strength Units' THEN property_value END) AS dosage_strength_units
 #     FROM {validation['source_schema']}.{validation['source_table']}
 #     WHERE vocabulary_name = 'Product Family Item Configuration'
@@ -273,13 +270,13 @@
 #     print(message)
 
 #     query =f"""
-#         SELECT 
+#         SELECT concept_code,
 #                 MAX(CASE WHEN property_name = 'Dosage Strength Units' THEN property_value END) AS dosage_strength_units
 #                 FROM {validation['source_schema']}.{validation['source_table']}
 #                 WHERE vocabulary_name = 'Product Family Item Configuration'
 #                 group by concept_code 
 #         except 
-#                 SELECT tgt.dosage_strength_units
+#                 SELECT tgt.product_configuration_name ,tgt.dosage_strength_units
 #                 FROM {validation['target_schema']}.{validation['target_table']} tgt"""
 #     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
     
@@ -304,10 +301,10 @@
 # def test_TS_RDCC_113_TC_RDCC_118_fill_volume_validation(db_connection: connection | None,validation: dict[str, str]): 
 #     print(f"RDCC-118-This test case ensures that the fill_volume in the dim_product_family_item_configuration table is accurately retrieved as property_value using property_name as 'Dosage Volume', with the filter condition 'Product Family Item Configuration' as the vocabulary name from the dim_rdm_regcor_master_table.\n")
 #     print(f"Test 1 : Identify fill_volume in the dim_regcor_product_family_item_configuration table that are missing in the source table (dim_rdm_regcor_master_table): \n")
-#     query =f"""SELECT tgt.fill_volume
+#     query =f"""SELECT tgt.product_configuration_name ,tgt.fill_volume
 #             FROM {validation['target_schema']}.{validation['target_table']} tgt
 #             except
-#             SELECT 
+#             SELECT concept_code,
 #             MAX(CASE WHEN property_name = 'Dosage Volume' THEN property_value END) AS fill_volume
 #                 FROM {validation['source_schema']}.{validation['source_table']}
 #                 WHERE vocabulary_name = 'Product Family Item Configuration'
@@ -334,13 +331,13 @@
 #     print(message)
 
 #     query =f"""
-#         SELECT 
+#         SELECT concept_code,
 #             MAX(CASE WHEN property_name = 'Dosage Volume' THEN property_value END) AS fill_volume
 #                 FROM {validation['source_schema']}.{validation['source_table']}
 #                 WHERE vocabulary_name = 'Product Family Item Configuration'
 #                 group by concept_code
 #         except 
-#                 SELECT tgt.fill_volume
+#                 SELECT tgt.product_configuration_name,tgt.fill_volume
 #             FROM {validation['target_schema']}.{validation['target_table']} tgt"""
 #     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
     
@@ -365,10 +362,10 @@
 # def test_TS_RDCC_113_TC_RDCC_119__validation(db_connection: connection | None,validation: dict[str, str]): 
 #     print(f"RDCC-119-This test case ensures that the fill_volume_units in the dim_product_family_item_configuration table is accurately retrieved as property_value using property_name as 'Dosage Volume Units', with the filter condition 'Product Family Item Configuration' as the vocabulary name from the dim_rdm_regcor_master_table.\n")
 #     print(f"Test 1 : Identify fill_volume_units in the dim_regcor_product_family_item_configuration table that are missing in the source table (dim_rdm_regcor_master_table): \n")
-#     query =f"""SELECT tgt.fill_volume_units
+#     query =f"""SELECT tgt.product_configuration_name,tgt.fill_volume_units
 #             FROM {validation['target_schema']}.{validation['target_table']} tgt
 #             except
-#             SELECT 
+#             SELECT concept_code,
 #             MAX(CASE WHEN property_name = 'Dosage Volume Units' THEN property_value END) AS fill_volume_units
 #                 FROM {validation['source_schema']}.{validation['source_table']}
 #                 WHERE vocabulary_name = 'Product Family Item Configuration'
@@ -395,13 +392,13 @@
 #     print(message)
 
 #     query =f"""
-#         SELECT 
+#         SELECT concept_code,
 #             MAX(CASE WHEN property_name = 'Dosage Volume Units' THEN property_value END) AS fill_volume_units
 #                 FROM {validation['source_schema']}.{validation['source_table']}
 #                 WHERE vocabulary_name = 'Product Family Item Configuration'
 #                 group by concept_code
 #         except 
-#                 SELECT tgt.fill_volume_units
+#                 SELECT tgt.product_configuration_name,tgt.fill_volume_units
 #             FROM {validation['target_schema']}.{validation['target_table']} tgt"""
 #     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
     
@@ -426,10 +423,10 @@
 # def test_TS_RDCC_113_TC_RDCC_120_Product_family_validation(db_connection: connection | None,validation: dict[str, str]): 
 #     print(f"RDCC-120-This test case ensures that the Product_family in the dim_product_family_item_configuration table is accurately retrieved as property_value using property_name as 'Product Family', with the filter condition 'Product Family Item Configuration' as the vocabulary name from the dim_rdm_regcor_master_table.\n")
 #     print(f"Test 1 : Identify Product_family in the dim_regcor_product_family_item_configuration table that are missing in the source table (dim_rdm_regcor_master_table): \n")
-#     query =f"""SELECT tgt.product_family
+#     query =f"""SELECT tgt.product_configuration_name,tgt.product_family
 #             FROM {validation['target_schema']}.{validation['target_table']} tgt
 #             except
-#             SELECT 
+#             SELECT concept_code,
 #             MAX(CASE WHEN property_name = 'Product Family' THEN property_value END) AS product_family
 #                 FROM {validation['source_schema']}.{validation['source_table']}
 #                 WHERE vocabulary_name = 'Product Family Item Configuration'
@@ -456,13 +453,13 @@
 #     print(message)
 
 #     query =f"""
-#         SELECT 
+#         SELECT concept_code,
 #             MAX(CASE WHEN property_name = 'Product Family' THEN property_value END) AS product_family
 #                 FROM {validation['source_schema']}.{validation['source_table']}
 #                 WHERE vocabulary_name = 'Product Family Item Configuration'
 #                 group by concept_code
 #         except 
-#                 SELECT tgt.product_family
+#                 SELECT tgt.product_configuration_name,tgt.product_family
 #             FROM {validation['target_schema']}.{validation['target_table']} tgt"""
 #     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
     
@@ -488,23 +485,22 @@
 # def test_TS_RDCC_113_TC_RDCC_121_dp_family_item_code_validation(db_connection: connection | None,validation: dict[str, str]): 
 #     print(f"RDCC-121-This test case ensures that the dp_family_item_code in the dim_product_family_item_configuration table is accurately retrieved as relation_code_to using relation_name as 'Drug Product Family Item Code', with the filter condition 'Product Family Item Configuration' as the vocabulary name from the dim_rdm_regcor_master_table.\n")
 #     print(f"Test 1 : Identify dp_family_item_code in the dim_regcor_product_family_item_configuration table that are missing in the source table (dim_rdm_regcor_master_table): \n")
-#     query =f"""SELECT dp_family_item_code
+#     query =f"""SELECT tgt.product_configuration_name,dp_family_item_code
 #             FROM {validation['target_schema']}.{validation['target_table']} tgt
 #             except
-#             select distinct 
+#             select distinct b.concept_code, 
 #             COALESCE(dp_rel.relation_code_to, 'No_Source_Value') AS dp_family_item_code
 #             FROM ( 
-#             SELECT 
-#             concept_name
+#             SELECT concept_code
 #             FROM 
 #             {validation['source_schema']}.{validation['source_table']}
 #             WHERE 
 #             vocabulary_name = 'Product Family Item Configuration' 
 #             GROUP BY 
-#             concept_name 
+#             concept_code
 #             ) b 
 #             LEFT JOIN {validation['source_schema']}.{validation['source_table']} dp_rel 
-#             ON dp_rel.concept_name = b.concept_name 
+#             ON dp_rel.concept_code = b.concept_code 
 #             AND dp_rel.vocabulary_name = 'Product Family Item Configuration' 
 #             AND dp_rel.relation_name = 'Drug Product Family Item Code'"""
 #     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
@@ -528,24 +524,23 @@
 #     print(message)
 
 #     query =f"""
-#         select distinct 
+#         select distinct b.concept_code, 
 #             COALESCE(dp_rel.relation_code_to, 'No_Source_Value') AS dp_family_item_code
 #             FROM ( 
-#             SELECT 
-#             concept_name
+#             SELECT concept_code
 #             FROM 
 #             {validation['source_schema']}.{validation['source_table']}
 #             WHERE 
 #             vocabulary_name = 'Product Family Item Configuration' 
 #             GROUP BY 
-#             concept_name 
+#             concept_code
 #             ) b 
 #             LEFT JOIN {validation['source_schema']}.{validation['source_table']} dp_rel 
-#             ON dp_rel.concept_name = b.concept_name 
+#             ON dp_rel.concept_code = b.concept_code 
 #             AND dp_rel.vocabulary_name = 'Product Family Item Configuration' 
 #             AND dp_rel.relation_name = 'Drug Product Family Item Code'
 #         except 
-#                 SELECT dp_family_item_code
+#                 SELECT product_configuration_name,dp_family_item_code
 #             FROM {validation['target_schema']}.{validation['target_table']} tgt"""
 #     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
     
@@ -570,23 +565,22 @@
 # def test_TS_RDCC_113_TC_RDCC_122_da_family_item_code_validation(db_connection: connection | None,validation: dict[str, str]): 
 #     print(f"RDCC-122-This test case ensures that the da_family_item_code in the dim_product_family_item_configuration table is accurately retrieved as relation_code_to using relation_name as 'Device Assembly Family Item Code', with the filter condition 'Product Family Item Configuration' as the vocabulary name from the dim_rdm_regcor_master_table.\n")
 #     print(f"Test 1 : Identify da_family_item_code in the dim_regcor_product_family_item_configuration table that are missing in the source table (dim_rdm_regcor_master_table): \n")
-#     query =f"""SELECT tgt.da_family_item_code
+#     query =f"""SELECT product_configuration_name,tgt.da_family_item_code
 #         FROM {validation['target_schema']}.{validation['target_table']} tgt
 #         except
-#         select distinct 
+#         select distinct b.concept_code,
 #         COALESCE(da_rel.relation_code_to, 'No_Source_Value') AS da_family_item_code
 #         FROM ( 
-#         SELECT 
-#         concept_name
+#         SELECT concept_code
 #         FROM 
 #         {validation['source_schema']}.{validation['source_table']}
 #         WHERE 
 #         vocabulary_name = 'Product Family Item Configuration' 
 #         GROUP BY 
-#         concept_name 
+#         concept_code
 #         ) b 
 #         LEFT JOIN {validation['source_schema']}.{validation['source_table']} da_rel 
-#         ON da_rel.concept_name = b.concept_name 
+#         ON da_rel.concept_code = b.concept_code 
 #         AND da_rel.vocabulary_name = 'Product Family Item Configuration' 
 #         AND da_rel.relation_name = 'Device Assembly Family Item Code'   
 #         """
@@ -611,27 +605,28 @@
 #     print(message)
 
 #     query =f"""
-#         select distinct 
-#         COALESCE(da_rel.relation_code_to, 'No_Source_Value') AS da_family_item_code
-#         FROM ( 
-#         SELECT 
-#         concept_name
-#         FROM 
-#         {validation['source_schema']}.{validation['source_table']}
-#         WHERE 
-#         vocabulary_name = 'Product Family Item Configuration' 
-#         GROUP BY 
-#         concept_name 
-#         ) b 
-#         LEFT JOIN {validation['source_schema']}.{validation['source_table']} da_rel 
-#         ON da_rel.concept_name = b.concept_name 
-#         AND da_rel.vocabulary_name = 'Product Family Item Configuration' 
-#         AND da_rel.relation_name = 'Device Assembly Family Item Code' 
-#         except
-#         SELECT tgt.da_family_item_code
-#         FROM {validation['target_schema']}.{validation['target_table']} tgt"""
+#         select b.concept_code, 
+# COALESCE(da_rel.relation_code_to, 'No_Source_Value') AS da_family_item_code
+# FROM ( 
+# SELECT 
+# concept_code
+# FROM 
+# {validation['source_schema']}.{validation['source_table']}
+# WHERE 
+# vocabulary_name = 'Product Family Item Configuration' 
+# GROUP BY 
+# concept_code 
+# ) b 
+# LEFT JOIN {validation['source_schema']}.{validation['source_table']} da_rel 
+# ON da_rel.concept_code = b.concept_code 
+# AND da_rel.vocabulary_name = 'Product Family Item Configuration' 
+# AND da_rel.relation_name = 'Device Assembly Family Item Code'   
+# except 
+# SELECT tgt.product_configuration_name, tgt.da_family_item_code
+# FROM {validation['target_schema']}.{validation['target_table']} tgt"""
 #     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
-    
+
+#     print(query)  
 #     try:
 #         if diff_count == 0:
 #             message = f"✅ Source-to-Target check passed: All records from {validation['source_table']} exist in {validation['target_table']}."
@@ -650,29 +645,29 @@
 #     assert test,message
 #     print(message)
 
-# def test_TS_RDCC_113_TC_RDCC_122_fp_family_item_code_validation(db_connection: connection | None,validation: dict[str, str]): 
+# def test_TS_RDCC_113_TC_RDCC_123_fp_family_item_code_validation(db_connection: connection | None,validation: dict[str, str]): 
 #     print(f"RDCC-123-This test case ensures that the fp_family_item_code in the dim_product_family_item_configuration table is accurately retrieved as relation_code_to using relation_name as 'Finished Packaging Family Item Code', with the filter condition 'Product Family Item Configuration' as the vocabulary name from the dim_rdm_regcor_master_table.\n")
 #     print(f"Test 1 : Identify fp_family_item_code in the dim_regcor_product_family_item_configuration table that are missing in the source table (dim_rdm_regcor_master_table): \n")
-#     query =f"""SELECT fp_family_item_code
+#     query =f"""SELECT tgt.product_configuration_name ,tgt.fp_family_item_code
 #                 FROM {validation['target_schema']}.{validation['target_table']} tgt
 #                 except
-#                 select distinct 
+#                 select b.concept_code, 
 #                 COALESCE(fp_rel.relation_code_to, 'No_Source_Value') AS fp_family_item_code 
 #                 FROM ( 
 #                 SELECT 
-#                 concept_name
+#                 concept_code
 #                 FROM 
 #                 {validation['source_schema']}.{validation['source_table']}
 #                 WHERE 
 #                 vocabulary_name = 'Product Family Item Configuration' 
 #                 GROUP BY 
-#                 concept_name 
+#                 concept_code 
 #                 ) b  
 #                 LEFT JOIN {validation['source_schema']}.{validation['source_table']} fp_rel 
-#                 ON fp_rel.concept_name = b.concept_name 
+#                 ON fp_rel.concept_code = b.concept_code 
 #                 AND fp_rel.vocabulary_name = 'Product Family Item Configuration' 
 #                 AND fp_rel.relation_name = 'Finished Packaging Family Item Code'
-#                 """
+#             """
 #     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
     
 #     try:
@@ -694,25 +689,26 @@
 #     print(message)
 
 #     query =f"""
-#         select distinct 
-#             COALESCE(fp_rel.relation_code_to, 'No_Source_Value') AS fp_family_item_code 
-#             FROM ( 
-#             SELECT 
-#             concept_name
-#             FROM 
-#             {validation['source_schema']}.{validation['source_table']} 
-#             WHERE 
-#             vocabulary_name = 'Product Family Item Configuration' 
-#             GROUP BY 
-#             concept_name 
-#             ) b  
-#             LEFT JOIN {validation['source_schema']}.{validation['source_table']} fp_rel 
-#             ON fp_rel.concept_name = b.concept_name 
-#             AND fp_rel.vocabulary_name = 'Product Family Item Configuration' 
-#             AND fp_rel.relation_name = 'Finished Packaging Family Item Code'
-#             except 
-#             SELECT tgt.fp_family_item_code
-#             FROM {validation['target_schema']}.{validation['target_table']} tgt"""
+#         select b.concept_code, 
+#                 COALESCE(fp_rel.relation_code_to, 'No_Source_Value') AS fp_family_item_code 
+#                 FROM ( 
+#                 SELECT 
+#                 concept_code
+#                 FROM 
+#                 {validation['source_schema']}.{validation['source_table']}
+#                 WHERE 
+#                 vocabulary_name = 'Product Family Item Configuration' 
+#                 GROUP BY 
+#                 concept_code 
+#                 ) b  
+#                 LEFT JOIN {validation['source_schema']}.{validation['source_table']} fp_rel 
+#                 ON fp_rel.concept_code = b.concept_code 
+#                 AND fp_rel.vocabulary_name = 'Product Family Item Configuration' 
+#                 AND fp_rel.relation_name = 'Finished Packaging Family Item Code'
+#                 except 
+#                 SELECT tgt.product_configuration_name ,tgt.fp_family_item_code
+#                 FROM {validation['target_schema']}.{validation['target_table']} tgt
+#                 """
 #     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
     
 #     try:

@@ -25,7 +25,7 @@
 
 # #This Test set includes tests of DIM Drug Assembly Table.
 
-# def test_validate_connection(db_connection: connection | None, validation: dict[str, str]):
+# def test_TS_RDCC_107_TC_RDCC_108_manufacturer_validation(db_connection: connection | None,validation: dict[str, str]): 
 #     """
 #     Test to validate that a connection to the database can be established.
 #     """
@@ -37,13 +37,10 @@
 
 #     except Exception as e:
 #         pytest.fail(f"❌ Failed to connect to {validation['target_db']}: {str(e)}")
-
-# def test_table_exists(db_connection: connection | None,validation: dict[str, str]):
-    
+ 
 #     assert validate_table_exists( db_connection,validation["target_schema"], validation["target_table"]), "❌ Target Table does not exist!"
 #     print(f"\nTable {validation["target_table"]} exists.")
 
-# def test_TS_RDCC_107_TC_RDCC_108_manufacturer_validation(db_connection: connection | None,validation: dict[str, str]): 
 #     print(f"RDCC-108-This Test case validates manufacturer coulmn  data in dim manufacturer table is correctly fetched from dim_rdm_regcor_master_table by filtering Vocabulary name with 'RIM Manufacturers\n")
 #     print(f"Test 1 : Identify manufacturer in the dim_regcor_manufacturer table that are missing in the source table (dim_rdm_regcor_master_table):\n")
 #     success, count, msg = validate_target_to_source_with_filter(
@@ -79,12 +76,12 @@
 #     print(f"RDCC-109-This Test case validates the  manufacturer_id in dim manufatcurer is correctly retrive property_value using property_name as “RIM_Manufacturer_id”  with filter condition 'RIM Manufacturers' as vocabulary name from dim_rdm_regcor_master_table.\n")
 #     print(f"Test 1 : Identify manufacturer_id in the dim_regcor_manufactuer table that are missing in the source table (dim_rdm_regcor_master_table):  \n")
 
-#     query =f""" SELECT tgt.manufacturer_id 
+#     query =f""" SELECT tgt.manufacturer,tgt.manufacturer_id 
 #         FROM {validation['target_schema']}.{validation['target_table']} tgt
 #         except
-#         SELECT 
+#         SELECT drrmt.concept_code,
 #         MAX(CASE WHEN property_name = 'RIM Manufacturer ID' THEN property_value END) AS manufacturer_id
-#             FROM {validation['source_schema']}.{validation['source_table']}
+#             FROM {validation['source_schema']}.{validation['source_table']} drrmt
 #             WHERE vocabulary_name = 'RIM Manufacturers'
 #             group by concept_code 
 # """
@@ -110,13 +107,13 @@
 #     print(message)
 
 #     query =f"""
-#         SELECT 
+#         SELECT drrmt.concept_code,
 #             MAX(CASE WHEN property_name = 'RIM Manufacturer ID' THEN property_value END) AS manufacturer_id
-#                 FROM {validation['source_schema']}.{validation['source_table']}
+#                 FROM {validation['source_schema']}.{validation['source_table']} drrmt
 #                 WHERE vocabulary_name = 'RIM Manufacturers'
 #                 group by concept_code 
 #             except 
-#             SELECT tgt.manufacturer_id 
+#             SELECT tgt.manufacturer, tgt.manufacturer_id 
 #             FROM {validation['target_schema']}.{validation['target_table']} tgt"""
 
 #     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
@@ -144,12 +141,12 @@
 #     print(f"RDCC-110-This Test case validates the  registered_manufacturer in dim manufacturer is correctly retrive property_value using property_name as “Registered Manufacturer”  with filter condition 'RIM Manufacturers' as vocabulary name from dim_rdm_regcor_master_table.\n")
 #     print(f"Test 1 : Identify registered_manufacturer in the dim_regcor_manufactuer table that are missing in the source table (dim_rdm_regcor_master_table):   \n")
 
-#     query =f""" SELECT tgt.registered_manufacturer 
+#     query =f""" SELECT tgt.manufacturer,tgt.registered_manufacturer 
 #         FROM {validation['target_schema']}.{validation['target_table']} tgt
 #         except
-#         SELECT 
+#         SELECT drrmt.concept_code,
 #         MAX(CASE WHEN property_name = 'Registered Manufacturer' THEN property_value END) AS registered_manufacturer
-#             FROM {validation['source_schema']}.{validation['source_table']}
+#             FROM {validation['source_schema']}.{validation['source_table']} drrmt
 #             WHERE vocabulary_name = 'RIM Manufacturers'
 #             group by concept_code """
 
@@ -174,13 +171,13 @@
 #     print(message)
 
 #     query =f"""
-#         SELECT 
+#         SELECT concept_code,
 #             MAX(CASE WHEN property_name = 'Registered Manufacturer' THEN property_value END) AS registered_manufacturer
 #                 FROM {validation['source_schema']}.{validation['source_table']}
 #                 WHERE vocabulary_name = 'RIM Manufacturers'
 #                 group by concept_code 
 #             except 
-#             SELECT tgt.registered_manufacturer  
+#             SELECT tgt.manufacturer,tgt.registered_manufacturer  
 #             FROM {validation['target_schema']}.{validation['target_table']} tgt"""
 
 #     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
@@ -208,10 +205,10 @@
 #     print(f"RDCC-111-This Test case validates the  sap_plant_id in dim manufatcurer is correctly retrive property_value using property_name as “SAP Plant Code”  with filter condition 'RIM Manufacturers' as vocabulary name from dim_rdm_regcor_master_table.\n")
 #     print(f"Test 1 : Identify sap_plant_code in the dim_regcor_manufactuer table that are missing in the source table (dim_rdm_regcor_master_table):  \n")
 
-#     query =f""" SELECT tgt.sap_plant_code 
+#     query =f""" SELECT tgt.manufacturer, tgt.sap_plant_code 
 #             FROM {validation['target_schema']}.{validation['target_table']} tgt
 #             except
-#             SELECT 
+#             SELECT concept_code,
 #             MAX(CASE WHEN property_name = 'SAP Plant Code' THEN property_value END) AS sap_plant_code
 #                 FROM {validation['source_schema']}.{validation['source_table']}
 #                 WHERE vocabulary_name = 'RIM Manufacturers'
@@ -238,13 +235,13 @@
 #     print(message)
 
 #     query =f"""
-#                 SELECT 
+#                 SELECT concept_code,
 #                 MAX(CASE WHEN property_name = 'SAP Plant Code' THEN property_value END) AS sap_plant_code
 #                     FROM {validation['source_schema']}.{validation['source_table']}
 #                     WHERE vocabulary_name = 'RIM Manufacturers'
 #                     group by concept_code 
 #                 except 
-#                 SELECT tgt.sap_plant_code 
+#                 SELECT tgt.manufacturer,tgt.sap_plant_code 
 #                 FROM {validation['target_schema']}.{validation['target_table']} tgt"""
 
 #     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
