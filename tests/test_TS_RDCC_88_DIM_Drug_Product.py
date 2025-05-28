@@ -1,27 +1,27 @@
-# from psycopg2._psycopg import connection
-# import pytest
-# import yaml
-# import sys
-# import os
-# import logging
+from psycopg2._psycopg import connection
+import pytest
+import yaml
+import sys
+import os
+import logging
 
-# sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-# from utils.db_connector import *
-# from utils.validations_utils import *
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from utils.db_connector import *
+from utils.validations_utils import *
 
-# # Setup logging
-# logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
+# Setup logging
+logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
 
-# @pytest.fixture
-# def validation():
-#     return {
-#         "source_db": "regcor_refine_db",
-#         "source_schema": "regcor_refine",
-#         "source_table": "dim_rdm_regcor_master_table",   
-#         "target_db": "regcor_refine_db" ,
-#         "target_schema": "regcor_refine",        
-#         "target_table": "stg_dim_regcor_drug_product"
-#     }
+@pytest.fixture
+def validation():
+    return {
+        "source_db": "regcor_refine_db",
+        "source_schema": "regcor_refine",
+        "source_table": "dim_rdm_regcor_master_table",   
+        "target_db": "regcor_refine_db" ,
+        "target_schema": "regcor_refine",        
+        "target_table": "stg_dim_regcor_drug_product"
+    }
 
 # #This Test set includes tests of DIM Drug Assembly Table.
 
@@ -380,6 +380,7 @@
 #         except 
 #         select dp_material_number,drug_formulation_manufacturer, manufacturer_id,sap_plant_code from {validation['target_schema']}.{validation['target_table']}  ds"""
 
+#     print(query)
 #     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
     
 #     try:
@@ -399,6 +400,98 @@
         
 #     assert test,message
 #     print(message)
+
+# def test_TS_RDCC_88_TC_RDCC_95_concatenation_family_item_code_manufacturer_key_validations(db_connection: connection | None,validation: dict[str, str]):
+#     print("\nThis test case validates the concatenation rule used to populate the family_item_code_manufacturer_key in the Dim_regcor_drug_product table.\n")
+
+#     query = f"""
+#     SELECT dp.dp_material_number,
+# 	dm.concept_code,
+#     dp.family_item_code_manufacturer_key,
+#     SPLIT_PART(family_item_code_manufacturer_key, '|', 1) AS extracted_dp_family_item_code,
+#     SPLIT_PART(family_item_code_manufacturer_key, '|', 2) AS extracted_drug_formulation_manufacturer,
+#     CASE 
+#         WHEN dp.family_item_code = SPLIT_PART(family_item_code_manufacturer_key, '|', 1)
+#          AND dp.drug_formulation_manufacturer = SPLIT_PART(family_item_code_manufacturer_key, '|', 2)
+#         THEN 'Valid'
+#         ELSE 'Invalid'
+#     END AS validation_status
+# from  {validation['target_schema']}.{validation['target_table']} dp 
+# inner join {validation['source_schema']}.{validation['source_table']} dm
+# on dp.dp_material_number =dm.concept_code 
+# where 
+# dm.vocabulary_name = 'DP Flavor'
+# group by
+# dp.dp_material_number,
+# dm.concept_code,
+# dp.family_item_code,
+# dp.family_item_code_manufacturer_key,
+# dp.drug_formulation_manufacturer;
+#     """
+
+#     try:
+#         cursor = db_connection.cursor()
+#         cursor.execute(query)
+#         results = cursor.fetchall()
+
+#         # Get column index of 'validation_status'
+#         col_names = [desc[0] for desc in cursor.description]
+#         status_idx = col_names.index("validation_status")
+
+#         # Check for invalid statuses
+#         invalid_rows = [row for row in results if row[status_idx] != "Valid"]
+#         invalid_count = len(invalid_rows)
+
+#         assert invalid_count == 0, f"❌ {invalid_count} rows have invalid validation_status."
+#         print("✅ All rows have 'Valid' in validation_status.")
+#         logging.info("✅ All rows have 'Valid' in validation_status.")
+
+#     except Exception as e:
+#         error_msg = f"❌ Error during validation status check: {str(e)}"
+#         logging.exception(error_msg)
+#         return False, -1, error_msg
+
+# def test_TS_RDCC_88_TC_RDCC_96_concatenation_material_plant_key_validations(db_connection: connection | None,validation: dict[str, str]):
+#     print("\nThis test case validates the concatenation rule used to populate the material_plant_key in the Dim_regcor_drug_product table.\n")
+
+#     query = f"""
+#     SELECT 
+#     dp.dp_material_number,
+#     dm.sap_plant_code,
+#     SPLIT_PART(material_plant_key, '|', 1) AS extracted_dp_material_number,
+#     SPLIT_PART(material_plant_key, '|', 2) AS extracted_sap_plant_code,
+#     CASE 
+#         WHEN dp.dp_material_number = SPLIT_PART(material_plant_key, '|', 1)
+#          AND dm.sap_plant_code = SPLIT_PART(material_plant_key, '|', 2)
+#         THEN 'Valid'
+#         ELSE 'Invalid'
+#     END AS validation_status
+# FROM {validation['target_schema']}.{validation['target_table']} dp
+# LEFT JOIN {validation['source_schema']}.dim_regcor_manufacturer dm 
+# ON dp.drug_formulation_manufacturer  = dm.manufacturer
+#     """
+
+#     try:
+#         cursor = db_connection.cursor()
+#         cursor.execute(query)
+#         results = cursor.fetchall()
+
+#         # Get column index of 'validation_status'
+#         col_names = [desc[0] for desc in cursor.description]
+#         status_idx = col_names.index("validation_status")
+
+#         # Check for invalid statuses
+#         invalid_rows = [row for row in results if row[status_idx] != "Valid"]
+#         invalid_count = len(invalid_rows)
+
+#         assert invalid_count == 0, f"❌ {invalid_count} rows have invalid validation_status."
+#         print("✅ All rows have 'Valid' in validation_status.")
+#         logging.info("✅ All rows have 'Valid' in validation_status.")
+
+#     except Exception as e:
+#         error_msg = f"❌ Error during validation status check: {str(e)}"
+#         logging.exception(error_msg)
+#         return False, -1, error_msg
 
 # def test_TS_RDCC_88_TC_RDCC_97_PK_Check(db_connection: connection | None,validation: dict[str, str]):
 #     print("\nThis Test case validates the Duplicates,Null checks  Primary key column dp_material_number in DIM table and with source tables.\n")
