@@ -803,6 +803,7 @@ def run_and_validate_empty_query(connection, query, description="Query validatio
         results = cursor.fetchall()
         result_count = len(results)
 
+        print(query)
         if result_count == 0:
             message = f"✅ {description} passed: Query returned no records."
             logging.info(message)
