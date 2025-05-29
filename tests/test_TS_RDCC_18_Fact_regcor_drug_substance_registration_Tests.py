@@ -380,7 +380,7 @@ JOIN {validation['source_schema']}.product p ON p.id = r.product_family__v
 JOIN {validation['source_schema']}.product_active_substance pas ON p.id = pas.product__rim
   AND pas.status__v::text = '{{active__v}}'
 JOIN {validation['source_schema']}.active_substance_manufacturer asm ON asm.active_substance__rim = pas.active_substance__rim
-  AND asm.status__v::text = '{active__v}'
+  AND asm.status__v::text = '{{active__v}}'
 LEFT JOIN {validation['source_schema']}.application a ON a.id = r.application__rim
 JOIN {validation['source_schema']}.manufacturer m ON m.id = asm.manufacturer__rim
 JOIN {validation['source_schema']}.drug_substance ds ON ds.id = pas.active_substance__rim
@@ -399,16 +399,16 @@ WHERE
     
     try:
         if diff_count == 0:
-            message = f"✅ Target-to-Source check passed: All records from {validation['target_table']} exist in {validation['source_table']}."
+            message = f"✅ Source-to-target check passed: All records from {validation['source_table']} exist in {validation['target_table']}."
             logging.info(message)
             test = True
         else:
-            message = f"❌ Target-to-Source check failed: {diff_count} records in {validation['target_table']} missing from {validation['source_table']}."
+            message = f"❌ Source-to-target check failed: {diff_count} records in {validation['source_table']} missing from {validation['target_table']}."
             logging.error(message)
             test = False
 
     except Exception as e:
-        message = f"❌ Error during target-to-source completeness validation: {str(e)}"
+        message = f"❌ Error during Source-to-target completeness validation: {str(e)}"
         logging.exception(message)
         test = False
         
@@ -485,9 +485,9 @@ SELECT
 FROM {validation['source_schema']}.registration r
 JOIN {validation['source_schema']}.product p ON p.id = r.product_family__v
 JOIN {validation['source_schema']}.product_active_substance pas ON p.id = pas.product__rim
-  AND pas.status__v::text = '{active__v}'
+  AND pas.status__v::text = '{{active__v}}'
 JOIN {validation['source_schema']}.active_substance_manufacturer asm ON asm.active_substance__rim = pas.active_substance__rim
-  AND asm.status__v::text = '{active__v}'
+  AND asm.status__v::text = '{{active__v}}'
 LEFT JOIN {validation['source_schema']}.application a ON a.id = r.application__rim
 JOIN {validation['source_schema']}.manufacturer m ON m.id = asm.manufacturer__rim
 JOIN {validation['source_schema']}.drug_substance ds ON ds.id = pas.active_substance__rim
@@ -531,513 +531,1181 @@ FROM {validation['target_schema']}.{validation['target_table']} fdm
     assert test,message
     print(message)
 
-# def test_TS_RDCC_18_TC_RDCC_21_registration_state_validation(db_connection: connection | None,validation: dict[str, str]): 
-#     print(f"This test case ensures that the Registration_state in the Fact_regcor_drug_substance_registration table is correctly mapped  in the source rim_ref.registration table.\n")
-#     print(f"Identify registration_state in the stg_fact_regcor_drug_product_registration table that are missing from source table and give if transformation logic not working:\n")
-#     print(f"Test : Identify registration_state in the stg_fact_regcor_drug_substance_registration table that are missing in the source table (registration): '.):\n")
+def test_TS_RDCC_18_TC_RDCC_21_registration_state_validation(db_connection: connection | None,validation: dict[str, str]): 
+    print(f"This test case ensures that the Registration_state in the Fact_regcor_drug_substance_registration table is correctly mapped  in the source rim_ref.registration table.\n")
+    print(f"Identify registration_state in the stg_fact_regcor_drug_product_registration table that are missing from source table and give if transformation logic not working:\n")
+    print(f"Test : Identify registration_state in the stg_fact_regcor_drug_substance_registration table that are missing in the source table (registration): '.):\n")
 
-#     query =f"""select f.registration_state
-#             from {validation['target_schema']}.{validation['target_table']} f
-#             except
-#             select r_lc.lifecyclestate_label as registration_state
-#             from {validation['source_schema']}.{validation['source_table']} r,
-#             {validation['source_schema']}.registered_drug_product raisub, 
-#             {validation['source_schema']}.objectlifecyclestate_ref r_lc
-#             where r.id=registration__rim
-#             and r_lc.objectlifecycle_name = r.lifecycle__v 
-#             and r_lc.objectlifecyclestate_name = r.state__v
-#             and  r.state__v in  ('approved_state1__c', 'no_registration_required_state__c', 'transferred_state__v', 'expired_import_allowed_state__c')
+    query =f"""SELECT DISTINCT
+          fdm.registration_id,fdm.registration_state,
+          fdm.manufacturer_id,
+          fdm.drug_substance_name,
+          fdm.registered_active_ingredient_id
+        FROM {validation['target_schema']}.{validation['target_table']} fdm
+        except
+        (SELECT
+          COALESCE(r.id, 'No_Source_Value') AS registration_id,
+          r_lc.lifecyclestate_label as registration_state,
+          COALESCE(m.id, 'No_Source_Value') AS manufacturer_id,
+          COALESCE(ds.name__v, 'No_Source_Value') AS drug_substance_name,
+          COALESCE(rai.id, 'No_Source_Value') AS registered_active_ingredient_id
+        FROM (
+            SELECT
+              raisub.id,
+              raisub.manufacturer_name__rim,
+              raisub.active_substance__rim,
+              raisub.registration__rim,
+              raisub.application__rim,
+              raisub.manufacturing_activity__c, 
+            raisub.verified__c
+            FROM {validation['source_schema']}.registered_active_ingredient raisub
+            JOIN {validation['source_schema']}.objectlifecyclestate_ref raisub_lc
+              ON raisub_lc.objectlifecycle_name = raisub.lifecycle__v 
+            AND raisub_lc.objectlifecyclestate_name = raisub.state__v
+            CROSS JOIN UNNEST(manufacturing_activity__c) AS manufacturing_activity
+            CROSS JOIN UNNEST(status__v) AS rai_status
+            WHERE
+              raisub.state__v IN ('approved_state1__c', 'no_registration_required_state__c', 'divested_reporting_state__c')
+              AND manufacturing_activity::text IN (
+                'manufacture_of_active_substance__c',
+                'manufacture_of_active_substance_intermed__c',
+                'manufacture_of_fermentation__c',
+                'micronization_of_active_substance__c',
+                'packaging_of_active_substance__c'
+              )
+              AND rai_status = 'active__v'
+              AND raisub.verified__C IS TRUE
+            GROUP BY
+              raisub.id,
+              raisub.manufacturer_name__rim,
+              raisub.active_substance__rim,
+              raisub.registration__rim,
+              raisub.application__rim,
+              raisub.manufacturing_activity__c, 
+            raisub.verified__c
+        ) AS rai
+        LEFT JOIN {validation['source_schema']}.application a ON a.id = rai.application__rim
+        JOIN {validation['source_schema']}.manufacturer m ON m.id = rai.manufacturer_name__rim
+        JOIN {validation['source_schema']}.drug_substance ds ON ds.id = rai.active_substance__rim
+        JOIN {validation['source_schema']}.{validation['source_table']} r ON r.id = rai.registration__rim
+          AND r.state__v IN (
+            'approved_state1__c', 
+            'no_registration_required_state__c', 
+            'transferred_state__v', 
+            'expired_import_allowed_state__c'
+          )
+        LEFT JOIN UNNEST(r.status__v) AS registration_status ON TRUE
+        JOIN {validation['source_schema']}.country c ON r.country__rim = c.id
+        LEFT JOIN {validation['source_schema']}.objectlifecyclestate_ref r_lc
+          ON r_lc.objectlifecycle_name = r.lifecycle__v
+        AND r_lc.objectlifecyclestate_name = r.state__v
+        WHERE
+          registration_status = 'active__v'
+          AND r.clinical_study_number__v IS NULL
+        UNION
+        SELECT
+          COALESCE(r.id, 'No_Source_Value') AS registration_id,r_lc.lifecyclestate_label as registration_state,
+          COALESCE(m.id, 'No_Source_Value') AS manufacturer_id,
+          COALESCE(ds.name__v, 'No_Source_Value') AS drug_substance_name,
+          'No_Source_Value' AS registered_active_ingredient_id
+        FROM {validation['source_schema']}.{validation['source_table']} r
+        JOIN {validation['source_schema']}.product p ON p.id = r.product_family__v
+        JOIN {validation['source_schema']}.product_active_substance pas ON p.id = pas.product__rim
+          AND pas.status__v::text = '{{active__v}}'
+        JOIN {validation['source_schema']}.active_substance_manufacturer asm ON asm.active_substance__rim = pas.active_substance__rim
+          AND asm.status__v::text = '{{active__v}}'
+        LEFT JOIN {validation['source_schema']}.application a ON a.id = r.application__rim
+        JOIN {validation['source_schema']}.manufacturer m ON m.id = asm.manufacturer__rim
+        JOIN {validation['source_schema']}.drug_substance ds ON ds.id = pas.active_substance__rim
+          AND r.state__v IN ('no_registration_required_state__c')
+        LEFT JOIN UNNEST(r.status__v) AS registration_status ON TRUE
+        JOIN {validation['source_schema']}.country c ON r.country__rim = c.id
+        LEFT JOIN {validation['source_schema']}.objectlifecyclestate_ref r_lc
+          ON r_lc.objectlifecycle_name = r.lifecycle__v
+        AND r_lc.objectlifecyclestate_name = r.state__v
+        WHERE
+          registration_status = 'active__v'
+          AND r.clinical_study_number__v IS null)
+                """
 
-#                 """
-
-#     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
     
-#     try:
-#         if diff_count == 0:
-#             message = f"✅ Target-to-Source check passed: All records from {validation['target_table']} exist in {validation['source_table']}."
-#             logging.info(message)
-#             test = True
-#         else:
-#             message = f"❌ Target-to-Source check failed: {diff_count} records in {validation['target_table']} missing from {validation['source_table']}."
-#             logging.error(message)
-#             test = False
+    try:
+        if diff_count == 0:
+            message = f"✅ Target-to-Source check passed: All records from {validation['target_table']} exist in {validation['source_table']}."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Target-to-Source check failed: {diff_count} records in {validation['target_table']} missing from {validation['source_table']}."
+            logging.error(message)
+            test = False
 
-#     except Exception as e:
-#         message = f"❌ Error during target-to-source completeness validation: {str(e)}"
-#         logging.exception(message)
-#         test = False
+    except Exception as e:
+        message = f"❌ Error during target-to-source completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
         
-#     assert test,message
-#     print(message)
+    assert test,message
+    print(message)
 
-#     print(f"Test : Identify source_registration_name in the source table that are missing in the fact_regcor_drug_substance_registration table:\n")
-#     query =f"""select r_lc.lifecyclestate_label as registration_state
-#                 from {validation['source_schema']}.{validation['source_table']} r,
-#                 {validation['source_schema']}.registered_drug_product raisub, 
-#                 {validation['source_schema']}.objectlifecyclestate_ref r_lc
-#                 where r.id=registration__rim
-#                 and r_lc.objectlifecycle_name = r.lifecycle__v 
-#                 and r_lc.objectlifecyclestate_name = r.state__v
-#                 and  r.state__v in  ('approved_state1__c', 'no_registration_required_state__c', 'transferred_state__v', 'expired_import_allowed_state__c')
-#                 except
-#                 select f.registration_state
-#                 from {validation['target_schema']}.{validation['target_table']} f """
+    print(f"Test : Identify source_registration_state in the source table that are missing in the fact_regcor_drug_substance_registration table:\n")
+    query =f"""(SELECT
+  COALESCE(r.id, 'No_Source_Value') AS registration_id,r_lc.lifecyclestate_label as registration_state,
+  COALESCE(m.id, 'No_Source_Value') AS manufacturer_id,
+  COALESCE(ds.name__v, 'No_Source_Value') AS drug_substance_name,
+  COALESCE(rai.id, 'No_Source_Value') AS registered_active_ingredient_id
+FROM (
+    SELECT
+      raisub.id,
+      raisub.manufacturer_name__rim,
+      raisub.active_substance__rim,
+      raisub.registration__rim,
+      raisub.application__rim,
+      raisub.manufacturing_activity__c, 
+		raisub.verified__c
+    FROM {validation['source_schema']}.registered_active_ingredient raisub
+    JOIN {validation['source_schema']}.objectlifecyclestate_ref raisub_lc
+      ON raisub_lc.objectlifecycle_name = raisub.lifecycle__v 
+     AND raisub_lc.objectlifecyclestate_name = raisub.state__v
+    CROSS JOIN UNNEST(manufacturing_activity__c) AS manufacturing_activity
+    CROSS JOIN UNNEST(status__v) AS rai_status
+    WHERE
+      raisub.state__v IN ('approved_state1__c', 'no_registration_required_state__c', 'divested_reporting_state__c')
+      AND manufacturing_activity::text IN (
+        'manufacture_of_active_substance__c',
+        'manufacture_of_active_substance_intermed__c',
+        'manufacture_of_fermentation__c',
+        'micronization_of_active_substance__c',
+        'packaging_of_active_substance__c'
+      )
+      AND rai_status = 'active__v'
+      AND raisub.verified__C IS TRUE
+    GROUP BY
+      raisub.id,
+      raisub.manufacturer_name__rim,
+      raisub.active_substance__rim,
+      raisub.registration__rim,
+      raisub.application__rim,
+      raisub.manufacturing_activity__c, 
+		raisub.verified__c
+) AS rai
+LEFT JOIN {validation['source_schema']}.application a ON a.id = rai.application__rim
+JOIN {validation['source_schema']}.manufacturer m ON m.id = rai.manufacturer_name__rim
+JOIN {validation['source_schema']}.drug_substance ds ON ds.id = rai.active_substance__rim
+JOIN {validation['source_schema']}.{validation['source_table']} r ON r.id = rai.registration__rim
+  AND r.state__v IN (
+    'approved_state1__c', 
+    'no_registration_required_state__c', 
+    'transferred_state__v', 
+    'expired_import_allowed_state__c'
+  )
+LEFT JOIN UNNEST(r.status__v) AS registration_status ON TRUE
+JOIN {validation['source_schema']}.country c ON r.country__rim = c.id
+LEFT JOIN {validation['source_schema']}.objectlifecyclestate_ref r_lc
+  ON r_lc.objectlifecycle_name = r.lifecycle__v
+ AND r_lc.objectlifecyclestate_name = r.state__v
+WHERE
+  registration_status = 'active__v'
+  AND r.clinical_study_number__v IS NULL
+UNION
+SELECT
+  COALESCE(r.id, 'No_Source_Value') AS registration_id,r_lc.lifecyclestate_label as registration_state,
+  COALESCE(m.id, 'No_Source_Value') AS manufacturer_id,
+  COALESCE(ds.name__v, 'No_Source_Value') AS drug_substance_name,
+  'No_Source_Value' AS registered_active_ingredient_id
+FROM {validation['source_schema']}.{validation['source_table']} r
+JOIN {validation['source_schema']}.product p ON p.id = r.product_family__v
+JOIN {validation['source_schema']}.product_active_substance pas ON p.id = pas.product__rim
+  AND pas.status__v::text = '{{active__v}}'
+JOIN {validation['source_schema']}.active_substance_manufacturer asm ON asm.active_substance__rim = pas.active_substance__rim
+  AND asm.status__v::text = '{active__v}'
+LEFT JOIN {validation['source_schema']}.application a ON a.id = r.application__rim
+JOIN {validation['source_schema']}.manufacturer m ON m.id = asm.manufacturer__rim
+JOIN {validation['source_schema']}.drug_substance ds ON ds.id = pas.active_substance__rim
+  AND r.state__v IN ('no_registration_required_state__c')
+LEFT JOIN UNNEST(r.status__v) AS registration_status ON TRUE
+JOIN {validation['source_schema']}.country c ON r.country__rim = c.id
+LEFT JOIN {validation['source_schema']}.objectlifecyclestate_ref r_lc
+  ON r_lc.objectlifecycle_name = r.lifecycle__v
+ AND r_lc.objectlifecyclestate_name = r.state__v
+WHERE
+  registration_status = 'active__v'
+  AND r.clinical_study_number__v IS null)
+EXCEPT
+SELECT DISTINCT
+  fdm.registration_id,fdm.registration_state,
+  fdm.manufacturer_id,
+  fdm.drug_substance_name,
+  fdm.registered_active_ingredient_id
+FROM {validation['target_schema']}.{validation['target_table']} fdm"""
 
-#     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
     
-#     try:
-#         if diff_count == 0:
-#             message = f"✅ Source-to-Target check passed: All records from {validation['source_table']} exist in {validation['target_table']}."
-#             logging.info(message)
-#             test = True
-#         else:
-#             message = f"❌ Source-to-Target check failed: {diff_count} records in {validation['source_table']} missing from {validation['target_table']}."
-#             logging.error(message)
-#             test = False
+    try:
+        if diff_count == 0:
+            message = f"✅ Source-to-Target check passed: All records from {validation['source_table']} exist in {validation['target_table']}."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Source-to-Target check failed: {diff_count} records in {validation['source_table']} missing from {validation['target_table']}."
+            logging.error(message)
+            test = False
 
-#     except Exception as e:
-#         message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
-#         logging.exception(message)
-#         test = False
+    except Exception as e:
+        message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
         
-#     assert test,message
-#     print(message)
+    assert test,message
+    print(message)
 
 
-# def test_TS_RDCC_18_TC_RDCC_22_manufacturer_id_validation(db_connection: connection | None,validation: dict[str, str]): 
-#     print(f"This test case verifies that the manufacturer_id in the fact table is correctly mapped to the id in the source rim_ref.manufacturer table.\n")
-#     print(f"Identify manufacturer_id in the stg_fact_regcor_drug_substance_registration table that are missing from source table \n")
-#     print(f"Test : Identify registration_state in the stg_fact_regcor_drug_substance_registration table that are missing in the source table (registration): '.):\n")
+def test_TS_RDCC_18_TC_RDCC_22_manufacturer_id_RDCC_23_validation(db_connection: connection | None,validation: dict[str, str]): 
+    print(f"This test case verifies that the manufacturer_id in the fact table is correctly mapped to the id in the source rim_ref.manufacturer table.\n")
+    print(f"\nIdentify manufacturer_id in the stg_fact_regcor_drug_substance_registration table that are missing in the source table  \n")
+    print(f"Test : Identify registration_state in the {validation['target_schema']}.{validation['target_table']} table that are missing in the source table (registration): '.):\n")
 
-#     query =f"""select f.manufacturer_id  
-#                 from {validation['target_schema']}.{validation['target_table']} f
-#                 left join {validation['source_schema']}.manufacturer m
-#                 on m.id=f.manufacturer_id
-#                 where m.id is null"""
+    query =f"""SELECT DISTINCT
+  fdm.registration_id,
+  fdm.manufacturer_id,
+  fdm.manufacturer_name,
+  fdm.drug_substance_name,
+  fdm.registered_active_ingredient_id,
+  fdm.application_id
+FROM {validation['target_schema']}.{validation['target_table']} fdm
+except
+(SELECT
+  COALESCE(r.id, 'No_Source_Value') AS registration_id,
+  COALESCE(m.id, 'No_Source_Value') AS manufacturer_id,
+  m.name__v,
+  COALESCE(ds.name__v, 'No_Source_Value') AS drug_substance_name,
+  COALESCE(rai.id, 'No_Source_Value') AS registered_active_ingredient_id,
+  a.id
+FROM (
+    SELECT
+      raisub.id,
+      raisub.manufacturer_name__rim,
+      raisub.active_substance__rim,
+      raisub.registration__rim,
+      raisub.application__rim,
+      raisub.manufacturing_activity__c, 
+		raisub.verified__c
+    FROM {validation['source_schema']}.registered_active_ingredient raisub
+    JOIN {validation['source_schema']}.objectlifecyclestate_ref raisub_lc
+      ON raisub_lc.objectlifecycle_name = raisub.lifecycle__v 
+     AND raisub_lc.objectlifecyclestate_name = raisub.state__v
+    CROSS JOIN UNNEST(manufacturing_activity__c) AS manufacturing_activity
+    CROSS JOIN UNNEST(status__v) AS rai_status
+    WHERE
+      raisub.state__v IN ('approved_state1__c', 'no_registration_required_state__c', 'divested_reporting_state__c')
+      AND manufacturing_activity::text IN (
+        'manufacture_of_active_substance__c',
+        'manufacture_of_active_substance_intermed__c',
+        'manufacture_of_fermentation__c',
+        'micronization_of_active_substance__c',
+        'packaging_of_active_substance__c'
+      )
+      AND rai_status = 'active__v'
+      AND raisub.verified__C IS TRUE
+    GROUP BY
+      raisub.id,
+      raisub.manufacturer_name__rim,
+      raisub.active_substance__rim,
+      raisub.registration__rim,
+      raisub.application__rim,
+      raisub.manufacturing_activity__c, 
+		raisub.verified__c
+) AS rai
+LEFT JOIN {validation['source_schema']}.application a ON a.id = rai.application__rim
+JOIN {validation['source_schema']}.manufacturer m ON m.id = rai.manufacturer_name__rim
+JOIN {validation['source_schema']}.drug_substance ds ON ds.id = rai.active_substance__rim
+JOIN {validation['source_schema']}.{validation['source_table']} r ON r.id = rai.registration__rim
+  AND r.state__v IN (
+    'approved_state1__c', 
+    'no_registration_required_state__c', 
+    'transferred_state__v', 
+    'expired_import_allowed_state__c'
+  )
+LEFT JOIN UNNEST(r.status__v) AS registration_status ON TRUE
+JOIN {validation['source_schema']}.country c ON r.country__rim = c.id
+LEFT JOIN {validation['source_schema']}.objectlifecyclestate_ref r_lc
+  ON r_lc.objectlifecycle_name = r.lifecycle__v
+ AND r_lc.objectlifecyclestate_name = r.state__v
+WHERE
+  registration_status = 'active__v'
+  AND r.clinical_study_number__v IS NULL
+UNION
+SELECT
+  COALESCE(r.id, 'No_Source_Value') AS registration_id,
+  COALESCE(m.id, 'No_Source_Value') AS manufacturer_id,
+  m.name__v,
+  COALESCE(ds.name__v, 'No_Source_Value') AS drug_substance_name,
+  'No_Source_Value' AS registered_active_ingredient_id,
+  a.id
+FROM {validation['source_schema']}.{validation['source_table']} r
+JOIN {validation['source_schema']}.product p ON p.id = r.product_family__v
+JOIN {validation['source_schema']}.product_active_substance pas ON p.id = pas.product__rim
+  AND pas.status__v::text = '{{active__v}}'
+JOIN {validation['source_schema']}.active_substance_manufacturer asm ON asm.active_substance__rim = pas.active_substance__rim
+  AND asm.status__v::text = '{{active__v}}'
+LEFT JOIN {validation['source_schema']}.application a ON a.id = r.application__rim
+JOIN {validation['source_schema']}.manufacturer m ON m.id = asm.manufacturer__rim
+JOIN {validation['source_schema']}.drug_substance ds ON ds.id = pas.active_substance__rim
+  AND r.state__v IN ('no_registration_required_state__c')
+LEFT JOIN UNNEST(r.status__v) AS registration_status ON TRUE
+JOIN {validation['source_schema']}.country c ON r.country__rim = c.id
+LEFT JOIN {validation['source_schema']}.objectlifecyclestate_ref r_lc
+  ON r_lc.objectlifecycle_name = r.lifecycle__v
+ AND r_lc.objectlifecyclestate_name = r.state__v
+WHERE
+  registration_status = 'active__v'
+  AND r.clinical_study_number__v IS null)
+"""
 
-#     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
     
-#     try:
-#         if diff_count == 0:
-#             message = f"✅ Target-to-Source check passed: All records from {validation['target_table']} exist in {validation['source_table']}."
-#             logging.info(message)
-#             test = True
-#         else:
-#             message = f"❌ Target-to-Source check failed: {diff_count} records in {validation['target_table']} missing from {validation['source_table']}."
-#             logging.error(message)
-#             test = False
+    try:
+        if diff_count == 0:
+            message = f"✅ Target-to-Source check passed: All records from {validation['target_table']} exist in {validation['source_table']}."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Target-to-Source check failed: {diff_count} records in {validation['target_table']} missing from {validation['source_table']}."
+            logging.error(message)
+            test = False
 
-#     except Exception as e:
-#         message = f"❌ Error during target-to-source completeness validation: {str(e)}"
-#         logging.exception(message)
-#         test = False
+    except Exception as e:
+        message = f"❌ Error during target-to-source completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
         
-#     assert test,message
-#     print(message)
+    assert test,message
+    print(message)
 
-#     print(f"Test : Identify source_registration_name in the source table that are missing in the fact_regcor_drug_substance_registration table:\n")
-#     query =f"""SELECT 
-#     m.id AS manufacturer_id
-# FROM 
-#     {validation['source_schema']}.manufacturer m
-# JOIN 
-#     {validation['source_schema']}.registered_active_ingredient rai
-# ON 
-#     m.id = rai.manufacturer_name__rim
-# LEFT JOIN 
-#     UNNEST(rai.manufacturing_activity__c) AS manufacturing_activity
-# ON 
-#     TRUE
-# LEFT JOIN 
-#     {validation['target_schema']}.{validation['target_table']} f
-# ON 
-#     f.manufacturer_id = m.id
-# WHERE 
-#     f.manufacturer_id IS NULL
-#     AND manufacturing_activity::TEXT IN (
-#         'manufacture_of_active_substance__c', 
-#         'manufacture_of_active_substance_intermed__c', 
-#         'manufacture_of_fermentation__c', 
-#         'micronization_of_active_substance__c', 
-#         'packaging_of_active_substance__c'
-#     )
-#     and 
-#     rai.state__v IN ('approved_state1__c', 'no_registration_required_state__c', 'divested_reporting_state__c') 
-#  """
+    print(f"Test : Identify manufacturer_id in the source table that are missing in the fact_regcor_drug_substance_registration table:\n")
+    query =f"""(SELECT
+  COALESCE(r.id, 'No_Source_Value') AS registration_id,
+  COALESCE(m.id, 'No_Source_Value') AS manufacturer_id,
+  m.name__v,
+  COALESCE(ds.name__v, 'No_Source_Value') AS drug_substance_name,
+  COALESCE(rai.id, 'No_Source_Value') AS registered_active_ingredient_id,
+  a.id
+FROM (
+    SELECT
+      raisub.id,
+      raisub.manufacturer_name__rim,
+      raisub.active_substance__rim,
+      raisub.registration__rim,
+      raisub.application__rim,
+      raisub.manufacturing_activity__c, 
+		raisub.verified__c
+    FROM {validation['source_schema']}.registered_active_ingredient raisub
+    JOIN {validation['source_schema']}.objectlifecyclestate_ref raisub_lc
+      ON raisub_lc.objectlifecycle_name = raisub.lifecycle__v 
+     AND raisub_lc.objectlifecyclestate_name = raisub.state__v
+    CROSS JOIN UNNEST(manufacturing_activity__c) AS manufacturing_activity
+    CROSS JOIN UNNEST(status__v) AS rai_status
+    WHERE
+      raisub.state__v IN ('approved_state1__c', 'no_registration_required_state__c', 'divested_reporting_state__c')
+      AND manufacturing_activity::text IN (
+        'manufacture_of_active_substance__c',
+        'manufacture_of_active_substance_intermed__c',
+        'manufacture_of_fermentation__c',
+        'micronization_of_active_substance__c',
+        'packaging_of_active_substance__c'
+      )
+      AND rai_status = 'active__v'
+      AND raisub.verified__C IS TRUE
+    GROUP BY
+      raisub.id,
+      raisub.manufacturer_name__rim,
+      raisub.active_substance__rim,
+      raisub.registration__rim,
+      raisub.application__rim,
+      raisub.manufacturing_activity__c, 
+		raisub.verified__c
+) AS rai
+LEFT JOIN {validation['source_schema']}.application a ON a.id = rai.application__rim
+JOIN {validation['source_schema']}.manufacturer m ON m.id = rai.manufacturer_name__rim
+JOIN {validation['source_schema']}.drug_substance ds ON ds.id = rai.active_substance__rim
+JOIN {validation['source_schema']}.{validation['source_table']} r ON r.id = rai.registration__rim
+  AND r.state__v IN (
+    'approved_state1__c', 
+    'no_registration_required_state__c', 
+    'transferred_state__v', 
+    'expired_import_allowed_state__c'
+  )
+LEFT JOIN UNNEST(r.status__v) AS registration_status ON TRUE
+JOIN {validation['source_schema']}.country c ON r.country__rim = c.id
+LEFT JOIN {validation['source_schema']}.objectlifecyclestate_ref r_lc
+  ON r_lc.objectlifecycle_name = r.lifecycle__v
+ AND r_lc.objectlifecyclestate_name = r.state__v
+WHERE
+  registration_status = 'active__v'
+  AND r.clinical_study_number__v IS NULL
+UNION
+SELECT
+  COALESCE(r.id, 'No_Source_Value') AS registration_id,
+  COALESCE(m.id, 'No_Source_Value') AS manufacturer_id,
+  m.name__v,
+  COALESCE(ds.name__v, 'No_Source_Value') AS drug_substance_name,
+  'No_Source_Value' AS registered_active_ingredient_id,
+  a.id
+FROM {validation['source_schema']}.{validation['source_table']} r
+JOIN {validation['source_schema']}.product p ON p.id = r.product_family__v
+JOIN {validation['source_schema']}.product_active_substance pas ON p.id = pas.product__rim
+  AND pas.status__v::text = '{{active__v}}'
+JOIN {validation['source_schema']}.active_substance_manufacturer asm ON asm.active_substance__rim = pas.active_substance__rim
+  AND asm.status__v::text = '{{active__v}}'
+LEFT JOIN {validation['source_schema']}.application a ON a.id = r.application__rim
+JOIN {validation['source_schema']}.manufacturer m ON m.id = asm.manufacturer__rim
+JOIN {validation['source_schema']}.drug_substance ds ON ds.id = pas.active_substance__rim
+  AND r.state__v IN ('no_registration_required_state__c')
+LEFT JOIN UNNEST(r.status__v) AS registration_status ON TRUE
+JOIN {validation['source_schema']}.country c ON r.country__rim = c.id
+LEFT JOIN {validation['source_schema']}.objectlifecyclestate_ref r_lc
+  ON r_lc.objectlifecycle_name = r.lifecycle__v
+ AND r_lc.objectlifecyclestate_name = r.state__v
+WHERE
+  registration_status = 'active__v'
+  AND r.clinical_study_number__v IS NULL)
+EXCEPT
+SELECT DISTINCT
+  fdm.registration_id,
+  fdm.manufacturer_id,
+  fdm.manufacturer_name,
+  fdm.drug_substance_name,
+  fdm.registered_active_ingredient_id,
+  fdm.application_id
+FROM {validation['target_schema']}.{validation['target_table']} fdm
+ """
 
-#     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
     
-#     try:
-#         if diff_count == 0:
-#             message = f"✅ Source-to-Target check passed: All records from manufacturer exist in {validation['target_table']}."
-#             logging.info(message)
-#             test = True
-#         else:
-#             message = f"❌ Source-to-Target check failed: {diff_count} records in manufacturer missing from {validation['target_table']}."
-#             logging.error(message)
-#             test = False
+    try:
+        if diff_count == 0:
+            message = f"✅ Source-to-Target check passed: All records from manufacturer exist in {validation['target_table']}."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Source-to-Target check failed: {diff_count} records in manufacturer missing from {validation['target_table']}."
+            logging.error(message)
+            test = False
 
-#     except Exception as e:
-#         message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
-#         logging.exception(message)
-#         test = False
+    except Exception as e:
+        message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
         
-#     assert test,message
-#     print(message)
+    assert test,message
+    print(message)
 
-# def test_TS_RDCC_18_TC_RDCC_23_manufacturer_name_validation(db_connection: connection | None,validation: dict[str, str]): 
-#     print(f"This test case verifies that the manufacturer_name in the fact table is correctly mapped to the name__v in the source rim_ref.manufacturer table.\n")
-#     print(f"Identify manufacturer_name in the stg_fact_regcor_drug_substance_registration table that are missing from source table \n")
+def test_TS_RDCC_18_TC_RDCC_24_application_id_validation(db_connection: connection | None,validation: dict[str, str]): 
+    print(f"This test case verifies that the application_id in the fact table is correctly mapped to the id in the source rim_ref.application table.\n")
+    print(f"Identify application_id in the stg_fact_regcor_drug_substance_registration table that are missing from source table \n")
     
-#     query =f"""select f.manufacturer_name  
-#                 from {validation['target_schema']}.{validation['target_table']} f
-#                 left join {validation['source_schema']}.manufacturer m
-#                 on m.id=f.manufacturer_id
-#                 where m.id is null"""
+    query =f"""SELECT DISTINCT
+  fdm.registration_id,
+  fdm.manufacturer_id,
+  fdm.drug_substance_name,
+  fdm.registered_active_ingredient_id,
+  fdm.application_id
+        FROM {validation['target_schema']}.{validation['target_table']} fdm
+        except
+        (SELECT
+          COALESCE(r.id, 'No_Source_Value') AS registration_id,
+          COALESCE(m.id, 'No_Source_Value') AS manufacturer_id,
+          COALESCE(ds.name__v, 'No_Source_Value') AS drug_substance_name,
+          COALESCE(rai.id, 'No_Source_Value') AS registered_active_ingredient_id,
+          a.id
+        FROM (
+            SELECT
+              raisub.id,
+              raisub.manufacturer_name__rim,
+              raisub.active_substance__rim,
+              raisub.registration__rim,
+              raisub.application__rim,
+              raisub.manufacturing_activity__c, 
+            raisub.verified__c
+            FROM {validation['source_schema']}.registered_active_ingredient raisub
+            JOIN {validation['source_schema']}.objectlifecyclestate_ref raisub_lc
+              ON raisub_lc.objectlifecycle_name = raisub.lifecycle__v 
+            AND raisub_lc.objectlifecyclestate_name = raisub.state__v
+            CROSS JOIN UNNEST(manufacturing_activity__c) AS manufacturing_activity
+            CROSS JOIN UNNEST(status__v) AS rai_status
+            WHERE
+              raisub.state__v IN ('approved_state1__c', 'no_registration_required_state__c', 'divested_reporting_state__c')
+              AND manufacturing_activity::text IN (
+                'manufacture_of_active_substance__c',
+                'manufacture_of_active_substance_intermed__c',
+                'manufacture_of_fermentation__c',
+                'micronization_of_active_substance__c',
+                'packaging_of_active_substance__c'
+              )
+              AND rai_status = 'active__v'
+              AND raisub.verified__C IS TRUE
+            GROUP BY
+              raisub.id,
+              raisub.manufacturer_name__rim,
+              raisub.active_substance__rim,
+              raisub.registration__rim,
+              raisub.application__rim,
+              raisub.manufacturing_activity__c, 
+            raisub.verified__c
+        ) AS rai
+        LEFT JOIN {validation['source_schema']}.application a ON a.id = rai.application__rim
+        JOIN {validation['source_schema']}.manufacturer m ON m.id = rai.manufacturer_name__rim
+        JOIN {validation['source_schema']}.drug_substance ds ON ds.id = rai.active_substance__rim
+        JOIN {validation['source_schema']}.{validation['source_table']} r ON r.id = rai.registration__rim
+          AND r.state__v IN (
+            'approved_state1__c', 
+            'no_registration_required_state__c', 
+            'transferred_state__v', 
+            'expired_import_allowed_state__c'
+          )
+        LEFT JOIN UNNEST(r.status__v) AS registration_status ON TRUE
+        JOIN {validation['source_schema']}.country c ON r.country__rim = c.id
+        LEFT JOIN {validation['source_schema']}.objectlifecyclestate_ref r_lc
+          ON r_lc.objectlifecycle_name = r.lifecycle__v
+        AND r_lc.objectlifecyclestate_name = r.state__v
+        WHERE
+          registration_status = 'active__v'
+          AND r.clinical_study_number__v IS NULL
+        UNION
+        SELECT
+          COALESCE(r.id, 'No_Source_Value') AS registration_id,
+          COALESCE(m.id, 'No_Source_Value') AS manufacturer_id,
+          COALESCE(ds.name__v, 'No_Source_Value') AS drug_substance_name,
+          'No_Source_Value' AS registered_active_ingredient_id,
+          a.id
+        FROM {validation['source_schema']}.{validation['source_table']} r
+        JOIN {validation['source_schema']}.product p ON p.id = r.product_family__v
+        JOIN {validation['source_schema']}.product_active_substance pas ON p.id = pas.product__rim
+          AND pas.status__v::text = '{{active__v}}'
+        JOIN {validation['source_schema']}.active_substance_manufacturer asm ON asm.active_substance__rim = pas.active_substance__rim
+          AND asm.status__v::text = '{{active__v}}'
+        LEFT JOIN {validation['source_schema']}.application a ON a.id = r.application__rim
+        JOIN {validation['source_schema']}.manufacturer m ON m.id = asm.manufacturer__rim
+        JOIN {validation['source_schema']}.drug_substance ds ON ds.id = pas.active_substance__rim
+          AND r.state__v IN ('no_registration_required_state__c')
+        LEFT JOIN UNNEST(r.status__v) AS registration_status ON TRUE
+        JOIN {validation['source_schema']}.country c ON r.country__rim = c.id
+        LEFT JOIN {validation['source_schema']}.objectlifecyclestate_ref r_lc
+          ON r_lc.objectlifecycle_name = r.lifecycle__v
+        AND r_lc.objectlifecyclestate_name = r.state__v
+        WHERE
+          registration_status = 'active__v'
+          AND r.clinical_study_number__v IS null)
+        """
 
-#     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
     
-#     try:
-#         if diff_count == 0:
-#             message = f"✅ Target-to-Source check passed: All records from {validation['target_table']} exist in manufacturer."
-#             logging.info(message)
-#             test = True
-#         else:
-#             message = f"❌ Target-to-Source check failed: {diff_count} records in {validation['target_table']} missing from manufacturer"
-#             logging.error(message)
-#             test = False
+    try:
+        if diff_count == 0:
+            message = f"✅ Target-to-Source check passed: All records from {validation['target_table']} exist in application."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Target-to-Source check failed: {diff_count} records in {validation['target_table']} missing from application."
+            logging.error(message)
+            test = False
 
-#     except Exception as e:
-#         message = f"❌ Error during target-to-source completeness validation: {str(e)}"
-#         logging.exception(message)
-#         test = False
+    except Exception as e:
+        message = f"❌ Error during target-to-source completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
         
-#     assert test,message
-#     print(message)
+    assert test,message
+    print(message)
 
-#     print(f"Test : Identify manufacturer_name in the source table that are missing in the fact_regcor_drug_substance_registration table:\n")
-#     query =f"""SELECT 
-#     m.name__v AS manufacturer_name 
-#         FROM 
-#             {validation['source_schema']}.manufacturer m
-#         JOIN 
-#             {validation['source_schema']}.registered_active_ingredient rai
-#         ON 
-#             m.id = rai.manufacturer_name__rim
-#         LEFT JOIN 
-#             UNNEST(rai.manufacturing_activity__c) AS manufacturing_activity
-#         ON 
-#             TRUE
-#         LEFT JOIN 
-#             {validation['target_schema']}.{validation['target_table']} f
-#         ON 
-#             f.manufacturer_id = m.id
-#         WHERE 
-#             f.manufacturer_id IS NULL
-#             AND manufacturing_activity::TEXT IN (
-#                 'manufacture_of_active_substance__c', 
-#                 'manufacture_of_active_substance_intermed__c', 
-#                 'manufacture_of_fermentation__c', 
-#                 'micronization_of_active_substance__c', 
-#                 'packaging_of_active_substance__c'
-#     )
-#     and 
-#     rai.state__v IN ('approved_state1__c', 'no_registration_required_state__c', 'divested_reporting_state__c') 
-#  """
+    print(f"Test : Identify application_id in the source table that are missing in the fact_regcor_drug_substance_registration table:\n")
+    query =f"""(SELECT
+  COALESCE(r.id, 'No_Source_Value') AS registration_id,
+  COALESCE(m.id, 'No_Source_Value') AS manufacturer_id,
+  m.name__v,
+  COALESCE(ds.name__v, 'No_Source_Value') AS drug_substance_name,
+  COALESCE(rai.id, 'No_Source_Value') AS registered_active_ingredient_id,
+  a.id
+FROM (
+    SELECT
+      raisub.id,
+      raisub.manufacturer_name__rim,
+      raisub.active_substance__rim,
+      raisub.registration__rim,
+      raisub.application__rim,
+      raisub.manufacturing_activity__c, 
+		raisub.verified__c
+    FROM {validation['source_schema']}.registered_active_ingredient raisub
+    JOIN {validation['source_schema']}.objectlifecyclestate_ref raisub_lc
+      ON raisub_lc.objectlifecycle_name = raisub.lifecycle__v 
+     AND raisub_lc.objectlifecyclestate_name = raisub.state__v
+    CROSS JOIN UNNEST(manufacturing_activity__c) AS manufacturing_activity
+    CROSS JOIN UNNEST(status__v) AS rai_status
+    WHERE
+      raisub.state__v IN ('approved_state1__c', 'no_registration_required_state__c', 'divested_reporting_state__c')
+      AND manufacturing_activity::text IN (
+        'manufacture_of_active_substance__c',
+        'manufacture_of_active_substance_intermed__c',
+        'manufacture_of_fermentation__c',
+        'micronization_of_active_substance__c',
+        'packaging_of_active_substance__c'
+      )
+      AND rai_status = 'active__v'
+      AND raisub.verified__C IS TRUE
+    GROUP BY
+      raisub.id,
+      raisub.manufacturer_name__rim,
+      raisub.active_substance__rim,
+      raisub.registration__rim,
+      raisub.application__rim,
+      raisub.manufacturing_activity__c, 
+		raisub.verified__c
+) AS rai
+LEFT JOIN {validation['source_schema']}.application a ON a.id = rai.application__rim
+JOIN {validation['source_schema']}.manufacturer m ON m.id = rai.manufacturer_name__rim
+JOIN {validation['source_schema']}.drug_substance ds ON ds.id = rai.active_substance__rim
+JOIN {validation['source_schema']}.{validation['source_table']} r ON r.id = rai.registration__rim
+  AND r.state__v IN (
+    'approved_state1__c', 
+    'no_registration_required_state__c', 
+    'transferred_state__v', 
+    'expired_import_allowed_state__c'
+  )
+LEFT JOIN UNNEST(r.status__v) AS registration_status ON TRUE
+JOIN {validation['source_schema']}.country c ON r.country__rim = c.id
+LEFT JOIN {validation['source_schema']}.objectlifecyclestate_ref r_lc
+  ON r_lc.objectlifecycle_name = r.lifecycle__v
+ AND r_lc.objectlifecyclestate_name = r.state__v
+WHERE
+  registration_status = 'active__v'
+  AND r.clinical_study_number__v IS NULL
+UNION
+SELECT
+  COALESCE(r.id, 'No_Source_Value') AS registration_id,
+  COALESCE(m.id, 'No_Source_Value') AS manufacturer_id,
+  m.name__v,
+  COALESCE(ds.name__v, 'No_Source_Value') AS drug_substance_name,
+  'No_Source_Value' AS registered_active_ingredient_id,
+  a.id
+FROM {validation['source_schema']}.{validation['source_table']} r
+JOIN {validation['source_schema']}.product p ON p.id = r.product_family__v
+JOIN {validation['source_schema']}.product_active_substance pas ON p.id = pas.product__rim
+  AND pas.status__v::text = '{{active__v}}'
+JOIN {validation['source_schema']}.active_substance_manufacturer asm ON asm.active_substance__rim = pas.active_substance__rim
+  AND asm.status__v::text = '{{active__v}}'
+LEFT JOIN {validation['source_schema']}.application a ON a.id = r.application__rim
+JOIN {validation['source_schema']}.manufacturer m ON m.id = asm.manufacturer__rim
+JOIN {validation['source_schema']}.drug_substance ds ON ds.id = pas.active_substance__rim
+  AND r.state__v IN ('no_registration_required_state__c')
+LEFT JOIN UNNEST(r.status__v) AS registration_status ON TRUE
+JOIN {validation['source_schema']}.country c ON r.country__rim = c.id
+LEFT JOIN {validation['source_schema']}.objectlifecyclestate_ref r_lc
+  ON r_lc.objectlifecycle_name = r.lifecycle__v
+ AND r_lc.objectlifecyclestate_name = r.state__v
+WHERE
+  registration_status = 'active__v'
+  AND r.clinical_study_number__v IS NULL)
+EXCEPT
+SELECT DISTINCT
+  fdm.registration_id,
+  fdm.manufacturer_id,
+  fdm.manufacturer_name,
+  fdm.drug_substance_name,
+  fdm.registered_active_ingredient_id,
+  fdm.application_id
+FROM {validation['target_schema']}.{validation['target_table']} fdm
+"""
 
-#     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
     
-#     try:
-#         if diff_count == 0:
-#             message = f"✅ Source-to-Target check passed: All records from manufacturer exist in {validation['target_table']}."
-#             logging.info(message)
-#             test = True
-#         else:
-#             message = f"❌ Source-to-Target check failed: {diff_count} records in manufacturer missing from {validation['target_table']}."
-#             logging.error(message)
-#             test = False
+    try:
+        if diff_count == 0:
+            message = f"✅ Source-to-Target check passed: All records from application exist in {validation['target_table']}."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Source-to-Target check failed: {diff_count} records in application missing from {validation['target_table']}."
+            logging.error(message)
+            test = False
 
-#     except Exception as e:
-#         message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
-#         logging.exception(message)
-#         test = False
+    except Exception as e:
+        message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
         
-#     assert test,message
-#     print(message)
+    assert test,message
+    print(message)
 
-# def test_TS_RDCC_18_TC_RDCC_24_application_id_validation(db_connection: connection | None,validation: dict[str, str]): 
-#     print(f"This test case verifies that the application_id in the fact table is correctly mapped to the id in the source rim_ref.application table.\n")
-#     print(f"Identify application_id in the stg_fact_regcor_drug_substance_registration table that are missing from source table \n")
+def test_TS_RDCC_18_TC_RDCC_25_application_name_validation(db_connection: connection | None,validation: dict[str, str]): 
+    print(f"This test case verifies that the application_name in the fact table is correctly mapped to the name__v in the source rim_ref.application table.\n")
+    print(f"Identify application_name in the stg_fact_regcor_drug_substance_registration table that are missing from source table \n")
     
-#     query =f"""select f.application_id  
-#                 from {validation['target_schema']}.{validation['target_table']} f
-#                 left join {validation['source_schema']}.application a
-#                 on a.id=f.application_id
-#                 where a.id is null"""
+    query =f"""SELECT DISTINCT
+  fdm.registration_id,
+  fdm.manufacturer_id,
+  fdm.drug_substance_name,
+  fdm.registered_active_ingredient_id,
+  fdm.application_id,fdm.application_name
+FROM {validation['target_schema']}.{validation['target_table']} fdm
+except
+(SELECT
+  COALESCE(r.id, 'No_Source_Value') AS registration_id,
+  COALESCE(m.id, 'No_Source_Value') AS manufacturer_id,
+  COALESCE(ds.name__v, 'No_Source_Value') AS drug_substance_name,
+  COALESCE(rai.id, 'No_Source_Value') AS registered_active_ingredient_id,
+  a.id,a.name__V
+FROM (
+    SELECT
+      raisub.id,
+      raisub.manufacturer_name__rim,
+      raisub.active_substance__rim,
+      raisub.registration__rim,
+      raisub.application__rim,
+      raisub.manufacturing_activity__c, 
+		raisub.verified__c
+    FROM {validation['source_schema']}.registered_active_ingredient raisub
+    JOIN {validation['source_schema']}.objectlifecyclestate_ref raisub_lc
+      ON raisub_lc.objectlifecycle_name = raisub.lifecycle__v 
+     AND raisub_lc.objectlifecyclestate_name = raisub.state__v
+    CROSS JOIN UNNEST(manufacturing_activity__c) AS manufacturing_activity
+    CROSS JOIN UNNEST(status__v) AS rai_status
+    WHERE
+      raisub.state__v IN ('approved_state1__c', 'no_registration_required_state__c', 'divested_reporting_state__c')
+      AND manufacturing_activity::text IN (
+        'manufacture_of_active_substance__c',
+        'manufacture_of_active_substance_intermed__c',
+        'manufacture_of_fermentation__c',
+        'micronization_of_active_substance__c',
+        'packaging_of_active_substance__c'
+      )
+      AND rai_status = 'active__v'
+      AND raisub.verified__C IS TRUE
+    GROUP BY
+      raisub.id,
+      raisub.manufacturer_name__rim,
+      raisub.active_substance__rim,
+      raisub.registration__rim,
+      raisub.application__rim,
+      raisub.manufacturing_activity__c, 
+		raisub.verified__c
+) AS rai
+LEFT JOIN {validation['source_schema']}.application a ON a.id = rai.application__rim
+JOIN {validation['source_schema']}.manufacturer m ON m.id = rai.manufacturer_name__rim
+JOIN {validation['source_schema']}.drug_substance ds ON ds.id = rai.active_substance__rim
+JOIN {validation['source_schema']}.registration r ON r.id = rai.registration__rim
+  AND r.state__v IN (
+    'approved_state1__c', 
+    'no_registration_required_state__c', 
+    'transferred_state__v', 
+    'expired_import_allowed_state__c'
+  )
+LEFT JOIN UNNEST(r.status__v) AS registration_status ON TRUE
+JOIN {validation['source_schema']}.country c ON r.country__rim = c.id
+LEFT JOIN {validation['source_schema']}.objectlifecyclestate_ref r_lc
+  ON r_lc.objectlifecycle_name = r.lifecycle__v
+ AND r_lc.objectlifecyclestate_name = r.state__v
+WHERE
+  registration_status = 'active__v'
+  AND r.clinical_study_number__v IS NULL
+UNION
+SELECT
+  COALESCE(r.id, 'No_Source_Value') AS registration_id,
+  COALESCE(m.id, 'No_Source_Value') AS manufacturer_id,
+  COALESCE(ds.name__v, 'No_Source_Value') AS drug_substance_name,
+  'No_Source_Value' AS registered_active_ingredient_id,
+  a.id,a.name__V
+FROM {validation['source_schema']}.registration r
+JOIN {validation['source_schema']}.product p ON p.id = r.product_family__v
+JOIN {validation['source_schema']}.product_active_substance pas ON p.id = pas.product__rim
+  AND pas.status__v::text = '{{active__v}}'
+JOIN {validation['source_schema']}.active_substance_manufacturer asm ON asm.active_substance__rim = pas.active_substance__rim
+  AND asm.status__v::text = '{{active__v}}'
+LEFT JOIN {validation['source_schema']}.application a ON a.id = r.application__rim
+JOIN {validation['source_schema']}.manufacturer m ON m.id = asm.manufacturer__rim
+JOIN {validation['source_schema']}.drug_substance ds ON ds.id = pas.active_substance__rim
+  AND r.state__v IN ('no_registration_required_state__c')
+LEFT JOIN UNNEST(r.status__v) AS registration_status ON TRUE
+JOIN {validation['source_schema']}.country c ON r.country__rim = c.id
+LEFT JOIN {validation['source_schema']}.objectlifecyclestate_ref r_lc
+  ON r_lc.objectlifecycle_name = r.lifecycle__v
+ AND r_lc.objectlifecyclestate_name = r.state__v
+WHERE
+  registration_status = 'active__v'
+  AND r.clinical_study_number__v IS null)
+"""
 
-#     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
     
-#     try:
-#         if diff_count == 0:
-#             message = f"✅ Target-to-Source check passed: All records from {validation['target_table']} exist in application."
-#             logging.info(message)
-#             test = True
-#         else:
-#             message = f"❌ Target-to-Source check failed: {diff_count} records in {validation['target_table']} missing from application."
-#             logging.error(message)
-#             test = False
+    try:
+        if diff_count == 0:
+            message = f"✅ Target-to-Source check passed: All records from {validation['target_table']} exist in application."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Target-to-Source check failed: {diff_count} records in {validation['target_table']} missing from application."
+            logging.error(message)
+            test = False
 
-#     except Exception as e:
-#         message = f"❌ Error during target-to-source completeness validation: {str(e)}"
-#         logging.exception(message)
-#         test = False
+    except Exception as e:
+        message = f"❌ Error during target-to-source completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
         
-#     assert test,message
-#     print(message)
+    assert test,message
+    print(message)
 
-#     print(f"Test : Identify application_id in the source table that are missing in the fact_regcor_drug_substance_registration table:\n")
-#     query =f"""SELECT 
-#     a.id AS application_id
-#         FROM 
-#             {validation['source_schema']}.application a
-#         JOIN 
-#             {validation['source_schema']}.registered_active_ingredient rai
-#         ON 
-#             a.id = rai.application__rim
-#         JOIN 
-#             {validation['source_schema']}.{validation['source_table']} r
-#         ON   r.id=rai.registration__rim  
-#         LEFT JOIN 
-#             UNNEST(rai.manufacturing_activity__c) AS manufacturing_activity
-#         ON 
-#             true
-#         LEFT JOIN UNNEST(rai.status__v) AS registerd_status ON 
-#             true    
-#         LEFT JOIN 
-#             {validation['target_schema']}.{validation['target_table']} f
-#         ON 
-#             f.application_id = a.id
-#         WHERE 
-#             f.application_id IS NULL
-#             AND manufacturing_activity::TEXT IN (
-#                 'manufacture_of_active_substance__c', 
-#                 'manufacture_of_active_substance_intermed__c', 
-#                 'manufacture_of_fermentation__c', 
-#                 'micronization_of_active_substance__c', 
-#                 'packaging_of_active_substance__c'
-#             )
-#             and 
-#             rai.state__v IN ('approved_state1__c', 'no_registration_required_state__c', 'divested_reporting_state__c') 
-#             and registerd_status='active__v'
-#             and r.state__v IN (
-#                 'approved_state1__c', 
-#                 'no_registration_required_state__c', 
-#                 'transferred_state__v', 
-#                 'expired_import_allowed_state__c'
-#             )
-#             and 'active_v' = ANY(r.status__v)"""
-
-#     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    print(f"Test : Identify application_name in the source table that are missing in the fact_regcor_drug_substance_registration table:\n")
+    query = f"""(SELECT
+  COALESCE(r.id, 'No_Source_Value') AS registration_id,
+  COALESCE(m.id, 'No_Source_Value') AS manufacturer_id,
+  COALESCE(ds.name__v, 'No_Source_Value') AS drug_substance_name,
+  COALESCE(rai.id, 'No_Source_Value') AS registered_active_ingredient_id,
+  a.id,a.name__V
+FROM (
+    SELECT
+      raisub.id,
+      raisub.manufacturer_name__rim,
+      raisub.active_substance__rim,
+      raisub.registration__rim,
+      raisub.application__rim,
+      raisub.manufacturing_activity__c, 
+		raisub.verified__c
+    FROM {validation['source_schema']}.registered_active_ingredient raisub
+    JOIN {validation['source_schema']}.objectlifecyclestate_ref raisub_lc
+      ON raisub_lc.objectlifecycle_name = raisub.lifecycle__v 
+     AND raisub_lc.objectlifecyclestate_name = raisub.state__v
+    CROSS JOIN UNNEST(manufacturing_activity__c) AS manufacturing_activity
+    CROSS JOIN UNNEST(status__v) AS rai_status
+    WHERE
+      raisub.state__v IN ('approved_state1__c', 'no_registration_required_state__c', 'divested_reporting_state__c')
+      AND manufacturing_activity::text IN (
+        'manufacture_of_active_substance__c',
+        'manufacture_of_active_substance_intermed__c',
+        'manufacture_of_fermentation__c',
+        'micronization_of_active_substance__c',
+        'packaging_of_active_substance__c'
+      )
+      AND rai_status = 'active__v'
+      AND raisub.verified__C IS TRUE
+    GROUP BY
+      raisub.id,
+      raisub.manufacturer_name__rim,
+      raisub.active_substance__rim,
+      raisub.registration__rim,
+      raisub.application__rim,
+      raisub.manufacturing_activity__c, 
+		raisub.verified__c
+) AS rai
+LEFT JOIN {validation['source_schema']}.application a ON a.id = rai.application__rim
+JOIN {validation['source_schema']}.manufacturer m ON m.id = rai.manufacturer_name__rim
+JOIN {validation['source_schema']}.drug_substance ds ON ds.id = rai.active_substance__rim
+JOIN {validation['source_schema']}.registration r ON r.id = rai.registration__rim
+  AND r.state__v IN (
+    'approved_state1__c', 
+    'no_registration_required_state__c', 
+    'transferred_state__v', 
+    'expired_import_allowed_state__c'
+  )
+LEFT JOIN UNNEST(r.status__v) AS registration_status ON TRUE
+JOIN {validation['source_schema']}.country c ON r.country__rim = c.id
+LEFT JOIN {validation['source_schema']}.objectlifecyclestate_ref r_lc
+  ON r_lc.objectlifecycle_name = r.lifecycle__v
+ AND r_lc.objectlifecyclestate_name = r.state__v
+WHERE
+  registration_status = 'active__v'
+  AND r.clinical_study_number__v IS NULL
+UNION
+SELECT
+  COALESCE(r.id, 'No_Source_Value') AS registration_id,
+  COALESCE(m.id, 'No_Source_Value') AS manufacturer_id,
+  COALESCE(ds.name__v, 'No_Source_Value') AS drug_substance_name,
+  'No_Source_Value' AS registered_active_ingredient_id,
+  a.id,a.name__V
+FROM {validation['source_schema']}.registration r
+JOIN {validation['source_schema']}.product p ON p.id = r.product_family__v
+JOIN {validation['source_schema']}.product_active_substance pas ON p.id = pas.product__rim
+  AND pas.status__v::text = '{{active__v}}'
+JOIN {validation['source_schema']}.active_substance_manufacturer asm ON asm.active_substance__rim = pas.active_substance__rim
+  AND asm.status__v::text = '{{active__v}}'
+LEFT JOIN {validation['source_schema']}.application a ON a.id = r.application__rim
+JOIN {validation['source_schema']}.manufacturer m ON m.id = asm.manufacturer__rim
+JOIN {validation['source_schema']}.drug_substance ds ON ds.id = pas.active_substance__rim
+  AND r.state__v IN ('no_registration_required_state__c')
+LEFT JOIN UNNEST(r.status__v) AS registration_status ON TRUE
+JOIN {validation['source_schema']}.country c ON r.country__rim = c.id
+LEFT JOIN {validation['source_schema']}.objectlifecyclestate_ref r_lc
+  ON r_lc.objectlifecycle_name = r.lifecycle__v
+ AND r_lc.objectlifecyclestate_name = r.state__v
+WHERE
+  registration_status = 'active__v'
+  AND r.clinical_study_number__v IS null)
+EXCEPT
+SELECT DISTINCT
+  fdm.registration_id,
+  fdm.manufacturer_id,
+  fdm.drug_substance_name,
+  fdm.registered_active_ingredient_id,
+  fdm.application_id,fdm.application_name
+FROM {validation['target_schema']}.{validation['target_table']} fdm
+            """
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
     
-#     try:
-#         if diff_count == 0:
-#             message = f"✅ Source-to-Target check passed: All records from application exist in {validation['target_table']}."
-#             logging.info(message)
-#             test = True
-#         else:
-#             message = f"❌ Source-to-Target check failed: {diff_count} records in application missing from {validation['target_table']}."
-#             logging.error(message)
-#             test = False
+    try:
+        if diff_count == 0:
+            message = f"✅ Source-to-Target check passed: All records from application exist in {validation['target_table']}."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Source-to-Target check failed: {diff_count} records in application missing from {validation['target_table']}."
+            logging.error(message)
+            test = False
 
-#     except Exception as e:
-#         message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
-#         logging.exception(message)
-#         test = False
+    except Exception as e:
+        message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
         
-#     assert test,message
-#     print(message)
+    assert test,message
+    print(message)
 
-#     print("\nIdentify there is no Null values for application_id in dim table.\n")
-#     columns_to_check = ['application_id']
-#     result, count,msg = check_all_columns_null_combination(db_connection, validation['target_schema'], validation['target_table'], columns_to_check)
+def test_TS_RDCC_18_TC_RDCC_26_product_family_name_validation(db_connection: connection | None,validation: dict[str, str]): 
+    print(f"This test case verifies that the product_family_name in the fact table is correctly mapped to the name__v in the source rim_ref.product table and is not null.\n")
+    print(f"Identify product_family_name in the stg_fact_regcor_drug_substance_registration table that are missing from source table \n")
+    
+    query =f"""SELECT DISTINCT
+  fdm.registration_id,
+  fdm.manufacturer_id,
+  fdm.drug_substance_name,
+  fdm.registered_active_ingredient_id,
+  fdm.application_id,
+ fdm.product_family_name
+FROM {validation['target_schema']}.{validation['target_table']} fdm
+except
+(SELECT
+  COALESCE(r.id, 'No_Source_Value') AS registration_id,
+  COALESCE(m.id, 'No_Source_Value') AS manufacturer_id,
+  COALESCE(ds.name__v, 'No_Source_Value') AS drug_substance_name,
+  COALESCE(rai.id, 'No_Source_Value') AS registered_active_ingredient_id,
+  a.id,p.name__v AS product_family_name
+FROM (
+    SELECT
+      raisub.id,
+      raisub.manufacturer_name__rim,
+      raisub.active_substance__rim,
+      raisub.registration__rim,
+      raisub.application__rim,
+      raisub.manufacturing_activity__c, 
+		raisub.verified__c
+    FROM {validation['source_schema']}.registered_active_ingredient raisub
+    JOIN {validation['source_schema']}.objectlifecyclestate_ref raisub_lc
+      ON raisub_lc.objectlifecycle_name = raisub.lifecycle__v 
+     AND raisub_lc.objectlifecyclestate_name = raisub.state__v
+    CROSS JOIN UNNEST(manufacturing_activity__c) AS manufacturing_activity
+    CROSS JOIN UNNEST(status__v) AS rai_status
+    WHERE
+      raisub.state__v IN ('approved_state1__c', 'no_registration_required_state__c', 'divested_reporting_state__c')
+      AND manufacturing_activity::text IN (
+        'manufacture_of_active_substance__c',
+        'manufacture_of_active_substance_intermed__c',
+        'manufacture_of_fermentation__c',
+        'micronization_of_active_substance__c',
+        'packaging_of_active_substance__c'
+      )
+      AND rai_status = 'active__v'
+      AND raisub.verified__C IS TRUE
+    GROUP BY
+      raisub.id,
+      raisub.manufacturer_name__rim,
+      raisub.active_substance__rim,
+      raisub.registration__rim,
+      raisub.application__rim,
+      raisub.manufacturing_activity__c, 
+		raisub.verified__c
+) AS rai
+LEFT JOIN {validation['source_schema']}.application a ON a.id = rai.application__rim
+JOIN {validation['source_schema']}.manufacturer m ON m.id = rai.manufacturer_name__rim
+JOIN {validation['source_schema']}.drug_substance ds ON ds.id = rai.active_substance__rim
+JOIN {validation['source_schema']}.registration r ON r.id = rai.registration__rim
+  AND r.state__v IN (
+    'approved_state1__c', 
+    'no_registration_required_state__c', 
+    'transferred_state__v', 
+    'expired_import_allowed_state__c'
+  )
+LEFT JOIN UNNEST(r.status__v) AS registration_status ON TRUE
+JOIN {validation['source_schema']}.country c ON r.country__rim = c.id
+LEFT JOIN {validation['source_schema']}.objectlifecyclestate_ref r_lc
+  ON r_lc.objectlifecycle_name = r.lifecycle__v
+ AND r_lc.objectlifecyclestate_name = r.state__v
+LEFT JOIN {validation['source_schema']}.product p 
+    ON p.id = ds.product__v  
+WHERE
+  registration_status = 'active__v'
+  AND r.clinical_study_number__v IS NULL
+UNION
+SELECT
+  COALESCE(r.id, 'No_Source_Value') AS registration_id,
+  COALESCE(m.id, 'No_Source_Value') AS manufacturer_id,
+  COALESCE(ds.name__v, 'No_Source_Value') AS drug_substance_name,
+  'No_Source_Value' AS registered_active_ingredient_id,
+  a.id,p.name__v AS product_family_name
+FROM {validation['source_schema']}.registration r
+JOIN {validation['source_schema']}.product p ON p.id = r.product_family__v
+JOIN {validation['source_schema']}.product_active_substance pas ON p.id = pas.product__rim
+  AND pas.status__v::text = '{{active__v}}'
+JOIN {validation['source_schema']}.active_substance_manufacturer asm ON asm.active_substance__rim = pas.active_substance__rim
+  AND asm.status__v::text = '{{active__v}}'
+LEFT JOIN {validation['source_schema']}.application a ON a.id = r.application__rim
+JOIN {validation['source_schema']}.manufacturer m ON m.id = asm.manufacturer__rim
+JOIN {validation['source_schema']}.drug_substance ds ON ds.id = pas.active_substance__rim
+  AND r.state__v IN ('no_registration_required_state__c')
+LEFT JOIN UNNEST(r.status__v) AS registration_status ON TRUE
+JOIN {validation['source_schema']}.country c ON r.country__rim = c.id
+LEFT JOIN {validation['source_schema']}.objectlifecyclestate_ref r_lc
+  ON r_lc.objectlifecycle_name = r.lifecycle__v
+ AND r_lc.objectlifecyclestate_name = r.state__v
+WHERE
+  registration_status = 'active__v'
+  AND r.clinical_study_number__v IS null)
+"""
 
-#     try:
-#         if count == 0:
-#             message = f"✅ No rows found where all of the columns {columns_to_check} are NULL."
-#             logging.info(message)
-#             test = True
-#         else:
-#             message = f"❌ {count} row(s) found where all of the columns ({columns_to_check}) are NULL."
-#             logging.error(message)
-#             test = False
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+    try:
+        if diff_count == 0:
+            message = f"✅ Target-to-Source check passed: All records from {validation['target_table']} exist in product table."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Target-to-Source check failed: {diff_count} records in {validation['target_table']} missing from product table."
+            logging.error(message)
+            test = False
 
-#     except Exception as e:
-#         message =  f"❌ Error checking NULL combinations: {str(e)}"
-#         logging.exception(message)
-#         test = False
+    except Exception as e:
+        message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
         
-#     assert test,message
-#     print(message)
+    assert test,message
+    print(message)
 
-# def test_TS_RDCC_18_TC_RDCC_25_application_name_validation(db_connection: connection | None,validation: dict[str, str]): 
-#     print(f"This test case verifies that the application_name in the fact table is correctly mapped to the name__v in the source rim_ref.application table.\n")
-#     print(f"Identify application_name in the stg_fact_regcor_drug_substance_registration table that are missing from source table \n")
+    print(f"Test : Identify product_family_name in the source table that are missing in the {validation['target_schema']}.{validation['target_table']} table:\n")
     
-#     query =f"""select f.application_name 
-#                 from {validation['target_schema']}.{validation['target_table']} f
-#                 left join {validation['source_schema']}.application a
-#                 on a.id=f.application_id
-#                 where a.id is null"""
-
-#     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    query = f"""(SELECT
+  COALESCE(r.id, 'No_Source_Value') AS registration_id,
+  COALESCE(m.id, 'No_Source_Value') AS manufacturer_id,
+  COALESCE(ds.name__v, 'No_Source_Value') AS drug_substance_name,
+  COALESCE(rai.id, 'No_Source_Value') AS registered_active_ingredient_id,
+  a.id,p.name__v AS product_family_name
+FROM (
+    SELECT
+      raisub.id,
+      raisub.manufacturer_name__rim,
+      raisub.active_substance__rim,
+      raisub.registration__rim,
+      raisub.application__rim,
+      raisub.manufacturing_activity__c, 
+		raisub.verified__c
+    FROM {validation['source_schema']}.registered_active_ingredient raisub
+    JOIN {validation['source_schema']}.objectlifecyclestate_ref raisub_lc
+      ON raisub_lc.objectlifecycle_name = raisub.lifecycle__v 
+     AND raisub_lc.objectlifecyclestate_name = raisub.state__v
+    CROSS JOIN UNNEST(manufacturing_activity__c) AS manufacturing_activity
+    CROSS JOIN UNNEST(status__v) AS rai_status
+    WHERE
+      raisub.state__v IN ('approved_state1__c', 'no_registration_required_state__c', 'divested_reporting_state__c')
+      AND manufacturing_activity::text IN (
+        'manufacture_of_active_substance__c',
+        'manufacture_of_active_substance_intermed__c',
+        'manufacture_of_fermentation__c',
+        'micronization_of_active_substance__c',
+        'packaging_of_active_substance__c'
+      )
+      AND rai_status = 'active__v'
+      AND raisub.verified__C IS TRUE
+    GROUP BY
+      raisub.id,
+      raisub.manufacturer_name__rim,
+      raisub.active_substance__rim,
+      raisub.registration__rim,
+      raisub.application__rim,
+      raisub.manufacturing_activity__c, 
+		raisub.verified__c
+) AS rai
+LEFT JOIN {validation['source_schema']}.application a ON a.id = rai.application__rim
+JOIN {validation['source_schema']}.manufacturer m ON m.id = rai.manufacturer_name__rim
+JOIN {validation['source_schema']}.drug_substance ds ON ds.id = rai.active_substance__rim
+JOIN {validation['source_schema']}.registration r ON r.id = rai.registration__rim
+  AND r.state__v IN (
+    'approved_state1__c', 
+    'no_registration_required_state__c', 
+    'transferred_state__v', 
+    'expired_import_allowed_state__c'
+  )
+LEFT JOIN UNNEST(r.status__v) AS registration_status ON TRUE
+JOIN regcor_refine.country c ON r.country__rim = c.id
+LEFT JOIN regcor_refine.objectlifecyclestate_ref r_lc
+  ON r_lc.objectlifecycle_name = r.lifecycle__v
+ AND r_lc.objectlifecyclestate_name = r.state__v
+LEFT JOIN {validation['source_schema']}.product p 
+    ON p.id = ds.product__v  
+WHERE
+  registration_status = 'active__v'
+  AND r.clinical_study_number__v IS NULL
+UNION
+SELECT
+  COALESCE(r.id, 'No_Source_Value') AS registration_id,
+  COALESCE(m.id, 'No_Source_Value') AS manufacturer_id,
+  COALESCE(ds.name__v, 'No_Source_Value') AS drug_substance_name,
+  'No_Source_Value' AS registered_active_ingredient_id,
+  a.id,p.name__v AS product_family_name
+FROM {validation['source_schema']}.registration r
+JOIN {validation['source_schema']}.product p ON p.id = r.product_family__v
+JOIN {validation['source_schema']}.product_active_substance pas ON p.id = pas.product__rim
+  AND pas.status__v::text = '{{active__v}}'
+JOIN {validation['source_schema']}.active_substance_manufacturer asm ON asm.active_substance__rim = pas.active_substance__rim
+  AND asm.status__v::text = '{{active__v}}'
+LEFT JOIN {validation['source_schema']}.application a ON a.id = r.application__rim
+JOIN {validation['source_schema']}.manufacturer m ON m.id = asm.manufacturer__rim
+JOIN {validation['source_schema']}.drug_substance ds ON ds.id = pas.active_substance__rim
+  AND r.state__v IN ('no_registration_required_state__c')
+LEFT JOIN UNNEST(r.status__v) AS registration_status ON TRUE
+JOIN {validation['source_schema']}.country c ON r.country__rim = c.id
+LEFT JOIN {validation['source_schema']}.objectlifecyclestate_ref r_lc
+  ON r_lc.objectlifecycle_name = r.lifecycle__v
+ AND r_lc.objectlifecyclestate_name = r.state__v
+WHERE
+  registration_status = 'active__v'
+  AND r.clinical_study_number__v IS null)
+except 
+SELECT DISTINCT
+  fdm.registration_id,
+  fdm.manufacturer_id,
+  fdm.drug_substance_name,
+  fdm.registered_active_ingredient_id,
+  fdm.application_id,
+ fdm.product_family_name
+FROM {validation['target_schema']}.{validation['target_table']} fdm"""
     
-#     try:
-#         if diff_count == 0:
-#             message = f"✅ Target-to-Source check passed: All records from {validation['target_table']} exist in application."
-#             logging.info(message)
-#             test = True
-#         else:
-#             message = f"❌ Target-to-Source check failed: {diff_count} records in {validation['target_table']} missing from application."
-#             logging.error(message)
-#             test = False
+    test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
+    
+    try:
+        if diff_count == 0:
+            message = f"✅ Source-to-Target check passed: All records from {validation['source_table']} exist in product table."
+            logging.info(message)
+            test = True
+        else:
+            message = f"❌ Source-to-Target check failed: {diff_count} records in {validation['source_table']} missing from product table."
+            logging.error(message)
+            test = False
 
-#     except Exception as e:
-#         message = f"❌ Error during target-to-source completeness validation: {str(e)}"
-#         logging.exception(message)
-#         test = False
+    except Exception as e:
+        message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
+        logging.exception(message)
+        test = False
         
-#     assert test,message
-#     print(message)
-
-#     print(f"Test : Identify application_name in the source table that are missing in the fact_regcor_drug_substance_registration table:\n")
-#     query =f"""SELECT 
-#     a.name__v AS application_name
-#         FROM 
-#             {validation['source_schema']}.application a
-#         JOIN 
-#             {validation['source_schema']}.registered_active_ingredient rai
-#         ON 
-#             a.id = rai.application__rim
-#         JOIN 
-#             {validation['source_schema']}.{validation['source_table']} r
-#         ON   r.id=rai.registration__rim  
-#         LEFT JOIN 
-#             UNNEST(rai.manufacturing_activity__c) AS manufacturing_activity
-#         ON 
-#             true
-#         LEFT JOIN UNNEST(rai.status__v) AS registerd_status ON 
-#             true    
-#         LEFT JOIN 
-#             {validation['target_schema']}.{validation['target_table']} f
-#         ON 
-#             f.application_id = a.id
-#         WHERE 
-#             f.application_id IS NULL
-#             AND manufacturing_activity::TEXT IN (
-#                 'manufacture_of_active_substance__c', 
-#                 'manufacture_of_active_substance_intermed__c', 
-#                 'manufacture_of_fermentation__c', 
-#                 'micronization_of_active_substance__c', 
-#                 'packaging_of_active_substance__c'
-#             )
-#             and 
-#             rai.state__v IN ('approved_state1__c', 'no_registration_required_state__c', 'divested_reporting_state__c') 
-#             and registerd_status='active__v'
-#             and r.state__v IN (
-#                 'approved_state1__c', 
-#                 'no_registration_required_state__c', 
-#                 'transferred_state__v', 
-#                 'expired_import_allowed_state__c'
-#             )
-#             and 'active_v' = ANY(r.status__v)"""
-
-#     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
-    
-#     try:
-#         if diff_count == 0:
-#             message = f"✅ Source-to-Target check passed: All records from application exist in {validation['target_table']}."
-#             logging.info(message)
-#             test = True
-#         else:
-#             message = f"❌ Source-to-Target check failed: {diff_count} records in application missing from {validation['target_table']}."
-#             logging.error(message)
-#             test = False
-
-#     except Exception as e:
-#         message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
-#         logging.exception(message)
-#         test = False
-        
-#     assert test,message
-#     print(message)
-
-# def test_TS_RDCC_18_TC_RDCC_26_product_family_name_validation(db_connection: connection | None,validation: dict[str, str]): 
-#     print(f"This test case verifies that the product_family_name in the fact table is correctly mapped to the name__v in the source rim_ref.product table and is not null.\n")
-#     # print(f"Identify product_family_name in the stg_fact_regcor_drug_substance_registration table that are missing from source table \n")
-    
-#     # query =f"""select count(fdm.product_family_name) 
-#     # from {validation['target_schema']}.{validation['target_table']} fdm  
-# 	# except
-# 	# SELECT count(p.name__v)
-#     #     FROM {validation['source_schema']}.drug_substance ds
-#     #     JOIN {validation['source_schema']}.registered_active_ingredient rai ON ds.id = rai.active_substance__rim
-#     #     JOIN {validation['source_schema']}.product p ON p.id = ds.product__v
-#     #     WHERE  rai.state__v IN (
-#     #             'approved_state1__c', 'no_registration_required_state__c', 'divested_reporting_state__c'
-#     #         )
-#     #         AND 'active_v' = ANY(rai.status__v)"""
-
-#     # test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
-    
-#     # try:
-#     #     if diff_count == 0:
-#     #         message = f"✅ Target-to-Source check passed: All records from {validation['target_table']} exist in product table."
-#     #         logging.info(message)
-#     #         test = True
-#     #     else:
-#     #         message = f"❌ Target-to-Source check failed: {diff_count} records in {validation['target_table']} missing from product table."
-#     #         logging.error(message)
-#     #         test = False
-
-#     # except Exception as e:
-#     #     message = f"❌ Error during target-to-source completeness validation: {str(e)}"
-#     #     logging.exception(message)
-#     #     test = False
-        
-#     # assert test,message
-#     # print(message)
-
-#     print(f"Test : Identify product_family_name in the source table that are missing in the {validation['target_schema']}.{validation['target_table']} table:\n")
-#     query =f"""SELECT count(p.name__v)
-#                 FROM {validation['source_schema']}.drug_substance ds
-#                 JOIN {validation['source_schema']}.registered_active_ingredient rai ON ds.id = rai.active_substance__rim
-#                 JOIN {validation['source_schema']}.product p ON p.id = ds.product__v
-#                 WHERE  rai.state__v IN (
-#                         'approved_state1__c', 'no_registration_required_state__c', 'divested_reporting_state__c'
-#                     )
-#                     AND 'active_v' = ANY(rai.status__v)
-#                 Except
-#                 select count(fdm.product_family_name) from {validation['target_schema']}.{validation['target_table']} fdm"""
-
-#     test, diff_count , message  = run_and_validate_empty_query(db_connection, query, "Data Completeness Check")
-    
-#     try:
-#         if diff_count == 0:
-#             message = f"✅ Source-to-Target check passed: All records from {validation['source_table']} exist in product table."
-#             logging.info(message)
-#             test = True
-#         else:
-#             message = f"❌ Source-to-Target check failed: {diff_count} records in {validation['source_table']} missing from product table."
-#             logging.error(message)
-#             test = False
-
-#     except Exception as e:
-#         message = f"❌ Error during Source-to-Target completeness validation: {str(e)}"
-#         logging.exception(message)
-#         test = False
-        
-#     assert test,message
-#     print(message)
+    assert test,message
+    print(message)
 
 
 # def test_TS_RDCC_18_TC_RDCC_27_drug_substance_name_validation(db_connection: connection | None,validation: dict[str, str]): 
